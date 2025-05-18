@@ -1,10 +1,10 @@
 generator client {
   provider = "prisma-client-js"
-  output = "../generated/prisma"
+  output   = "../generated/prisma"
 }
 
 datasource db {
-  provider = "mysql" // or mysql/sqlite/etc.
+  provider = "mysql" // Or sqlite/postgresql/etc.
   url      = env("DATABASE_URL")
 }
 
@@ -27,6 +27,28 @@ enum QuestionType {
   File
 }
 
+model Certificate {
+  id        String   @id @default(uuid())
+  userId    String
+  courseId  String
+  quizId    String?
+  issuedAt  DateTime @default(now())
+  score     Float?
+
+  user      User     @relation(fields: [userId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+  quiz      Quiz?    @relation(fields: [quizId], references: [id])
+}
+
+model TestSeries {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  createdAt   DateTime @default(now())
+
+  quizzes     Quiz[]   @relation("TestSeriesQuizzes")
+}
+
 model User {
   id             String   @id @default(uuid())
   name           String
@@ -34,7 +56,13 @@ model User {
   password       String
   createdAt      DateTime @default(now())
   role           Prisma_Role     @default(Default)
+  testSeriesId   String?
+  testSeries     TestSeries? @relation("TestSeriesQuizzes", fields: [testSeriesId], references: [id])
   quizzesCreated Quiz[]   @relation("QuizCreator")
+  referralsMade  Referral[] @relation("Referrer")
+  referredAs     Referral[] @relation("ReferredUser")
+  quizRatings    QuizRating[]
+  courseRatings  CourseRating[]
 }
 
 model Quiz {
@@ -50,16 +78,26 @@ model Quiz {
   createdAt       DateTime   @default(now())
   visibleToPublic Boolean    @default(false)
   difficulty      Prisma_Difficulty
+  price           Float      @default(0)
+  avgRating       Float      @default(0) // Stored average rating
 
-  course   Course?   @relation(fields: [courseId], references: [id])
-  creator  User      @relation("QuizCreator", fields: [creatorId], references: [id])
-  questions Question[]
+  course     Course?        @relation(fields: [courseId], references: [id])
+  creator    User           @relation("QuizCreator", fields: [creatorId], references: [id])
+  questions  Question[]
+  referrals  Referral[]
+  quizRatings QuizRating[]
+  tags       Tag[]          @relation("QuizTags")
 }
 
 model Course {
-  id     String  @id @default(uuid())
-  name   String
-  quizzes Quiz[]
+  id         String   @id @default(uuid())
+  name       String 
+  url        String? @unique
+  avgRating  Float    @default(0) // Stored average rating
+
+  quizzes    Quiz[]
+  courseRatings CourseRating[]
+  tags       Tag[]    @relation("CourseTags")
 }
 
 model Question {
@@ -67,12 +105,49 @@ model Question {
   quizId         String
   question       String
   type           QuestionType
-  correctAnswer  String?       // Text-based answer for SingleChoice, MultipleChoice, Subjective
-  correctFileURL String?       // URL to file for File type questions
-  attachmentURL  String?       // Optional attachment for the question itself
+  correctAnswer  String?
+  correctFileURL String?
+  attachmentURL  String?
 
   quiz     Quiz             @relation(fields: [quizId], references: [id])
   options  QuestionOption[]
+}
+
+model QuizAttempt {
+  id        String   @id @default(uuid())
+  userId    String
+  quizId    String
+  score     Float?
+  startedAt DateTime @default(now())
+  finishedAt DateTime?
+
+  user      User     @relation(fields: [userId], references: [id])
+  quiz      Quiz     @relation(fields: [quizId], references: [id])
+}
+
+model CourseProgress {
+  id         String   @id @default(uuid())
+  userId     String
+  courseId   String
+  completed  Boolean  @default(false)
+  progress   Float    @default(0)
+  updatedAt  DateTime @updatedAt
+
+  user       User     @relation(fields: [userId], references: [id])
+  course     Course   @relation(fields: [courseId], references: [id])
+}
+
+model Referral {
+  id             String   @id @default(uuid())
+  referrerId     String
+  referredUserId String?
+  quizId         String
+  earnedAmount   Float    @default(0)
+  createdAt      DateTime @default(now())
+
+  referrer       User     @relation("Referrer", fields: [referrerId], references: [id])
+  referredUser   User?    @relation("ReferredUser", fields: [referredUserId], references: [id])
+  quiz           Quiz     @relation(fields: [quizId], references: [id])
 }
 
 model QuestionOption {
@@ -81,5 +156,43 @@ model QuestionOption {
   optionText String
   isCorrect  Boolean  @default(false)
 
-  question Question @relation(fields: [questionId], references: [id])
+  question   Question @relation(fields: [questionId], references: [id])
+}
+
+model Tag {
+  id       String  @id @default(uuid())
+  name     String  @unique
+
+  quizzes  Quiz[]  @relation("QuizTags")
+  courses  Course[] @relation("CourseTags")
+}
+
+model QuizRating {
+  id        String   @id @default(uuid())
+  userId    String
+  quizId    String
+  rating    Float    // 1.0 to 5.0
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+  quiz      Quiz     @relation(fields: [quizId], references: [id])
+
+  @@unique([userId, quizId])
+}
+
+model CourseRating {
+  id        String   @id @default(uuid())
+  userId    String
+  courseId  String
+  rating    Float
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
 }

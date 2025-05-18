@@ -9,7 +9,7 @@ const userRepo = new UserRepositoryImpl(prisma);
 const registerUser = new RegisterUser(userRepo);
 const signInUseCase = new SignInUser(userRepo);
 
-router.post("/signup", async (req, res) => {
+router.post("/auth/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body;
     const result = await registerUser.execute(name, email, password);
@@ -18,7 +18,7 @@ router.post("/signup", async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-router.post("/signin",async(req, res) => {
+router.post("/auth/signin",async(req, res) => {
     try {
       const { email, password } = req.body;
       const { user, token } = await signInUseCase.execute(email, password);
