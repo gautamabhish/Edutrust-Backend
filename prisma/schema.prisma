@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+  output = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql" // or mysql/sqlite/etc.
+  url      = env("DATABASE_URL")
+}
+
+enum Prisma_Role {
+  Default
+  Admin
+  SuperAdmin
+}
+
+enum Prisma_Difficulty {
+  Easy 
+  Medium
+  Hard
+}
+
+enum QuestionType {
+  SingleChoice
+  MultipleChoice
+  Subjective
+  File
+}
+
+model User {
+  id             String   @id @default(uuid())
+  name           String
+  email          String   @unique
+  password       String
+  createdAt      DateTime @default(now())
+  role           Prisma_Role     @default(Default)
+  quizzesCreated Quiz[]   @relation("QuizCreator")
+}
+
+model Quiz {
+  id              String     @id @default(uuid())
+  courseId        String?  
+  creatorId       String
+  title           String
+  description     String
+  thumbnailURL    String?    @default("")
+  duration        Int
+  backtrack       Boolean    @default(true)
+  randomize       Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  visibleToPublic Boolean    @default(false)
+  difficulty      Prisma_Difficulty
+
+  course   Course?   @relation(fields: [courseId], references: [id])
+  creator  User      @relation("QuizCreator", fields: [creatorId], references: [id])
+  questions Question[]
+}
+
+model Course {
+  id     String  @id @default(uuid())
+  name   String
+  quizzes Quiz[]
+}
+
+model Question {
+  id             String        @id @default(uuid())
+  quizId         String
+  question       String
+  type           QuestionType
+  correctAnswer  String?       // Text-based answer for SingleChoice, MultipleChoice, Subjective
+  correctFileURL String?       // URL to file for File type questions
+  attachmentURL  String?       // Optional attachment for the question itself
+
+  quiz     Quiz             @relation(fields: [quizId], references: [id])
+  options  QuestionOption[]
+}
+
+model QuestionOption {
+  id         String   @id @default(uuid())
+  questionId String
+  optionText String
+  isCorrect  Boolean  @default(false)
+
+  question Question @relation(fields: [questionId], references: [id])
+}
