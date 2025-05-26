@@ -14,11 +14,13 @@ export interface AuthRequest extends Request {
   };
 }
 
-export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction):void=> {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Authorization token missing or invalid" });
+     res.status(401).json({ message: "Authorization token missing or invalid" });
+     return ;
+    
   }
 
   const token = authHeader.split(" ")[1];
@@ -38,6 +40,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
 
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Invalid or expired token" });
+     res.status(401).json({ message: "Invalid or expired token" });
+     return ;
   }
 };
