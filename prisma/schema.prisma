@@ -118,6 +118,7 @@ model Question {
   type          QuestionType
   text          String
   points        Int
+  negPoints     Int
   options       Json  
   correctAnswers Json
   answerText    String?
