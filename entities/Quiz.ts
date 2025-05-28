@@ -8,6 +8,7 @@ export interface QuestionInput {
   type: QuestionType;
   text: string;
   points: number;
+  negPoints: number;
   options: string[];
   correctAnswers: number[];
   answerText?: string;

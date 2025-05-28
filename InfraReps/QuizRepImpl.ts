@@ -71,6 +71,7 @@ export class PrismaQuizRepo implements IQuizRepository {
             type: question.type as QuestionType,
             text: question.text,
             points: question.points,
+            negPoints: question.negPoints ?? 0,
             options: question.options,
             correctAnswers: question.correctAnswers,
             answerText: question.answerText,

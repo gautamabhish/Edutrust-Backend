@@ -12,19 +12,26 @@ export class UserController {
     try {
       const { name, email, password } = req.body;
       const result = await this.registerUser.execute(name, email, password);
-      res.status(201).json(result);
+      return res.status(201).json(result);
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      return res.status(400).json({ error: err.message });
     }
   }
 
   async login(req: Request, res: Response) {
     try {
       const { email, password } = req.body;
-      const result = await this.loginUser.execute(email, password);
-      res.status(200).json(result);
+      const {user,token} = await this.loginUser.execute(email, password);
+     
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: "strict",
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+    });
+      return res.status(200).json( {user} );
     } catch (err:any) {
-      res.status(401).json({ error: err.message });
+        return res.status(401).json({ error: err.message });
     }
   }
 }

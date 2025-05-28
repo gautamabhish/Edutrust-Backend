@@ -13,7 +13,7 @@ const registerUser = new RegisterUser(userRepo);
 const loginUser = new LoginUser(userRepo);
 const controller = new UserController(registerUser, loginUser);
 
-router.post("/register", (req, res) => controller.register(req, res));
-router.post("/login", (req, res) => controller.login(req, res));
+router.post("/register", async (req, res) => {await controller.register(req, res)});
+router.post("/login", async(req, res) => {await controller.login(req, res)});
 
 export default router;

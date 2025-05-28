@@ -4,9 +4,11 @@ import userRoutes from './Interfaces/Routes/userRoutes';
 import quizRoutes from './Interfaces/Routes/quizRoutes';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 dotenv.config();
 
 const app = express();
+app.use(cookieParser());
 app.use(cors());
 app.use(express.json());
 app.get('/', (req, res) => {
