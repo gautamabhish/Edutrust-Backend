@@ -2,10 +2,12 @@
 import { Request, Response } from "express";
 import { RegisterUser } from "../../UseCases/User/Register";
 import { LoginUser } from "../../UseCases/User/Login";
+import { GetUserDashboard } from "../../UseCases/User/GetDashboard";
 export class UserController {
   constructor(
     private registerUser: RegisterUser,
-    private loginUser: LoginUser
+    private loginUser: LoginUser,
+    private dashboardUsecase: GetUserDashboard 
   ) {}
 
   async register(req: Request, res: Response) {
@@ -34,4 +36,20 @@ export class UserController {
         return res.status(401).json({ error: err.message });
     }
   }
+   async getDashBoard(req: Request, res: Response) {
+  try {
+    const userId = req.query.userId as string;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const result = await this.dashboardUsecase.execute(userId);
+
+    res.json(result);
+  } catch (err) {
+    console.error("Dashboard error:", err);
+    res.status(500).json({ message: "Failed to load dashboard" });
+  }
+};
 }
