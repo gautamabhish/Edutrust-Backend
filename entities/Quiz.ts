@@ -1,6 +1,6 @@
 export enum QuestionType {
-    SingleChoice = 'SingleChoice',
-    MultipleChoice = 'MultipleChoice',
+    SingleChoice = 'Single Correct',
+    MultipleChoice = 'Multi Correct',
     Subjective = 'Subjective',
     FileAttach = 'File', // Corrected 'File' to 'FileAttach' for consistency if intended
 }

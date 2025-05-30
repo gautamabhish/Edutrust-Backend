@@ -1,4 +1,4 @@
-import { PrismaClient ,QuestionType} from "../generated/prisma";
+import { PrismaClient, Question, QuestionType } from "../generated/prisma";
 import { IQuizRepository } from "../IReps/IQuizRepo";
 import { CreateQuizInput } from "../entities/Quiz";
 import { v4 as uuid  } from "uuid";
@@ -6,9 +6,21 @@ import { v4 as uuid  } from "uuid";
 const prisma = new PrismaClient();
 
 export class PrismaQuizRepo implements IQuizRepository {
+
+
   private  arraysEqual(a: number[], b: number[]) {
   return a.length === b.length && a.every(v => b.includes(v));
 }
+  private mapQuestionType(type: string): QuestionType {
+    switch (type) {
+      case "Single Correct":
+        return QuestionType.SingleChoice;
+      case "Multiple Correct":
+        return QuestionType.MultipleChoice;
+      default:
+        throw new Error(`Unknown question type: ${type}`);
+    } 
+  }
 
   async createQuiz(data: CreateQuizInput): Promise<string> {
     return await prisma.$transaction(async (tx) => {
@@ -32,7 +44,7 @@ export class PrismaQuizRepo implements IQuizRepository {
           title: data.title,
           description: data.description,
           duration: data.duration,
-          difficulty: data.difficulty,
+          difficulty: data.difficulty, 
           creatorId: data.creatorId,
           courseId,
           thumbnailURL: data.thumbURL ?? "",
@@ -68,7 +80,7 @@ export class PrismaQuizRepo implements IQuizRepository {
           data: {
             id: uuid(),
             quizId,
-            type: question.type as QuestionType,
+            type:this.mapQuestionType(question.type),
             text: question.text,
             points: question.points,
             negPoints: question.negPoints ?? 0,

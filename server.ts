@@ -9,7 +9,14 @@ dotenv.config();
 
 const app = express();
 app.use(cookieParser());
-app.use(cors());
+app.use(cors(
+  {
+    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    credentials: true, // Allow cookies to be sent with requests
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }
+));
 app.use(express.json());
 app.get('/', (req, res) => {
   res.send('Access Blocked ...');
