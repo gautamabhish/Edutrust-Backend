@@ -7,7 +7,14 @@ export interface CertificateDTO {
 }
 export interface CourseDTO {
   id: string;
+  title: string;
+  description: string;
   thumbnailURL: string;
+  price: number;
+  duration: number;
+
+    creatorName: string;
+  
 }
 
 export interface IUserRepository {
@@ -24,5 +31,7 @@ export interface IUserRepository {
 getUserCertificates(userId: string): Promise<CertificateDTO[]>;
 
 getRecommendedCourses(userId: string): Promise<CourseDTO[]>;
+
+getExplore(): Promise<CourseDTO[]>; // returns an array of trending quizzes
 
 }

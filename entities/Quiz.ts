@@ -22,6 +22,7 @@ export interface CreateQuizInput {
   duration: number;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   creatorId: string;
+  creatorName: string;
   courseId?: string | null;
   courseURL?: string | null;
   thumbURL?: string | null;

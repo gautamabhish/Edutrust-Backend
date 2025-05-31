@@ -115,13 +115,53 @@ export class UserRepositoryImpl implements IUserRepository {
       take: 3,
       select: {
         id: true,
+        title: true,
+        description: true,
+        price: true,
+        duration: true,
         thumbnailURL: true,
+        creatorName:true, // Assuming creatorName is a field in the quiz model
       },
     });
 
     return recommendedQuizzes.map((quiz) => ({
       id: quiz.id,
+      title: quiz.title, 
+      description: quiz.description,
+      price: quiz.price,
+      duration: quiz.duration,
       thumbnailURL: quiz.thumbnailURL ?? "",
+      creatorName: quiz.creatorName ?? "", // Assuming creatorName is a field in the quiz model
     }));
   }
+
+
+    async getExplore(): Promise<CourseDTO[]> {
+    const quizzes = await this.prisma.quiz.findMany({
+      where: { visibleToPublic: true },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        thumbnailURL: true,
+        price: true,
+        duration: true,
+       creatorName : true ,
+      },
+    });
+
+    return quizzes.map((quiz) => ({
+      id: quiz.id,
+      title: quiz.title,
+      description: quiz.description,
+      thumbnailURL: quiz.thumbnailURL ?? "",
+      price: quiz.price,
+      duration: quiz.duration,
+      
+        creatorName: quiz.creatorName,
+      
+
+    }));
+  }
+
 }

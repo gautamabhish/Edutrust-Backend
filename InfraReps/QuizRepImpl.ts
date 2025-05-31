@@ -46,6 +46,7 @@ export class PrismaQuizRepo implements IQuizRepository {
           duration: data.duration,
           difficulty: data.difficulty, 
           creatorId: data.creatorId,
+          creatorName: data.creatorName,
           courseId,
           thumbnailURL: data.thumbURL ?? "",
           price: data.price,

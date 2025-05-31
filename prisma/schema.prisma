@@ -75,11 +75,12 @@ model Quiz {
   id           String  @id @default(uuid())
   courseId     String?
   creatorId    String
+  creatorName String
   testSeriesId String?
   currency     String?    @default("inr")
   title           String
   description     String
-  thumbnailURL    String?           @default("")
+  thumbnailURL    String           @default("https://res.cloudinary.com/dcn4q3zt1/image/upload/v1748680038/pexels-leeloothefirst-5428830_tmxie9.jpg")
   duration        Int
   backtrack       Boolean           @default(true)
   randomize       Boolean           @default(false)
