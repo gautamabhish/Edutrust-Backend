@@ -32,11 +32,14 @@ model Certificate {
   userId   String
   quizId   String
   issuedAt DateTime @default(now())
+  count   Int  
   score    Float
+  totalScore Float 
 
-  user   User   @relation(fields: [userId], references: [id])
-  
-  quiz   Quiz  @relation(fields: [quizId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  quiz Quiz @relation(fields: [quizId], references: [id])
+  @@unique([userId, quizId])
 }
 
 model TestSeries {
@@ -45,7 +48,7 @@ model TestSeries {
   description String?
   createdAt   DateTime @default(now())
 
-   quizzes Quiz[] @relation("TestSeriesQuizzes")
+  quizzes Quiz[] @relation("TestSeriesQuizzes")
   users   User[] @relation("UserTestSeries")
 }
 
@@ -63,33 +66,33 @@ model User {
   referralsMade  Referral[] @relation("Referrer")
   referredAs     Referral[] @relation("ReferredUser")
 
-  quizRatings   QuizRating[]
-  
+  quizRatings QuizRating[]
+
 
   certificates   Certificate[]
   quizAttempts   QuizAttempt[]
- 
+  referralTokens ReferralToken[] @relation("UserReferralTokens")
 }
 
 model Quiz {
-  id           String  @id @default(uuid())
-  courseId     String?
-  creatorId    String
-  creatorName String
-  testSeriesId String?
-  currency     String?    @default("inr")
+  id              String            @id @default(uuid())
+  courseId        String?
+  creatorId       String
+  creatorName     String
+  testSeriesId    String?
+  currency        String?           @default("inr")
   title           String
   description     String
-  thumbnailURL    String           @default("https://res.cloudinary.com/dcn4q3zt1/image/upload/v1748680038/pexels-leeloothefirst-5428830_tmxie9.jpg")
+  thumbnailURL    String            @default("https://res.cloudinary.com/dcn4q3zt1/image/upload/v1748680038/pexels-leeloothefirst-5428830_tmxie9.jpg")
   duration        Int
   backtrack       Boolean           @default(true)
   randomize       Boolean           @default(false)
   createdAt       DateTime          @default(now())
-  visibleToPublic Boolean           @default(false)
+  visibleToPublic Boolean           @default(true)
   difficulty      Prisma_Difficulty
   price           Float             @default(0)
   avgRating       Float             @default(0)
-
+  verified        Boolean         @default(false)
   course     Course?     @relation(fields: [courseId], references: [id])
   creator    User        @relation("QuizCreator", fields: [creatorId], references: [id])
   testSeries TestSeries? @relation("TestSeriesQuizzes", fields: [testSeriesId], references: [id])
@@ -99,36 +102,35 @@ model Quiz {
   quizRatings QuizRating[]
   tags        Tag[]        @relation("QuizTags")
 
-  certificates Certificate[]
-  quizAttempts QuizAttempt[]
+  certificates   Certificate[]
+  quizAttempts   QuizAttempt[]
+  referralTokens ReferralToken[] @relation("QuizReferralTokens")
 }
 
 model Course {
-  id        String  @id @default(uuid())
-  name      String
-  url       String? @unique
+  id   String  @id @default(uuid())
+  name String
+  url  String? @unique
 
-  quizzes        Quiz[]
-  tags           Tag[]            @relation("CourseTags")
- 
+  quizzes Quiz[]
+  tags    Tag[]  @relation("CourseTags")
 }
 
 model Question {
-  id            String   @id
-  quizId        String
-  type          QuestionType
-  text          String
-  points        Int
-  negPoints     Int
-  options       Json  
+  id             String       @id
+  quizId         String
+  type           QuestionType
+  text           String
+  points         Int
+  negPoints      Int
+  options        Json
   correctAnswers Json
-  answerText    String?
+  answerText     String?
   attachFileType String?
   attachFileURL  String?
 
-  quiz          Quiz     @relation(fields: [quizId], references: [id])
+  quiz Quiz @relation(fields: [quizId], references: [id])
 }
-
 
 model QuizAttempt {
   id         String    @id @default(uuid())
@@ -142,7 +144,6 @@ model QuizAttempt {
   quiz Quiz @relation(fields: [quizId], references: [id])
 }
 
-
 model Referral {
   id             String   @id @default(uuid())
   referrerId     String
@@ -150,13 +151,22 @@ model Referral {
   quizId         String
   earnedAmount   Float    @default(0)
   createdAt      DateTime @default(now())
+  redeemed       Boolean  @default(false)
 
   referrer     User  @relation("Referrer", fields: [referrerId], references: [id])
   referredUser User? @relation("ReferredUser", fields: [referredUserId], references: [id])
   quiz         Quiz  @relation(fields: [quizId], references: [id])
 }
 
+model ReferralToken {
+  token      String   @id @default(uuid())
+  quizId     String
+  referrerId String
+  createdAt  DateTime @default(now())
 
+  referrer User @relation("UserReferralTokens", fields: [referrerId], references: [id])
+  quiz     Quiz @relation("QuizReferralTokens", fields: [quizId], references: [id])
+}
 
 model Tag {
   id   String @id @default(uuid())
@@ -180,4 +190,3 @@ model QuizRating {
 
   @@unique([userId, quizId])
 }
-

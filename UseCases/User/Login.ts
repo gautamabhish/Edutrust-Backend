@@ -3,7 +3,7 @@ import { IUserRepository } from "../../IReps/IUserRepo";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret"; // make sure to store this securely
+const JWT_SECRET = process.env.JWT_SALT || "your_jwt_secret"; // make sure to store this securely
 
 export class LoginUser {
   constructor(private userRepo: IUserRepository) {}

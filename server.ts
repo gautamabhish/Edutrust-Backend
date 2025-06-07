@@ -2,6 +2,7 @@ import express from 'express';
 
 import userRoutes from './Interfaces/Routes/userRoutes';
 import quizRoutes from './Interfaces/Routes/quizRoutes';
+import { paymentRoutes } from './Interfaces/Routes/PaymentRoutes';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -11,7 +12,7 @@ const app = express();
 app.use(cookieParser());
 app.use(cors(
   {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: process.env.CLIENT_URL || 'http://192.168.1.7:3000', // Replace with your client URL
     credentials: true, // Allow cookies to be sent with requests
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -23,7 +24,7 @@ app.get('/', (req, res) => {
 });
 app.use('/api/users/auth',userRoutes);
 app.use('/api/quiz',quizRoutes );
-
+app.use('/api/payments',paymentRoutes);
 app.listen(process.env.PORT || 5000, () => {
   console.log(`Server is running on port ${process.env.PORT || 5000}`);
 }

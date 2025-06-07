@@ -4,13 +4,18 @@ import { RegisterUser } from "../../UseCases/User/Register";
 import { LoginUser } from "../../UseCases/User/Login";
 import { GetUserDashboard } from "../../UseCases/User/GetDashboard";
 import { GetTrending } from "../../UseCases/User/getTrending";
+import { GetReferralIdUseCase } from "../../UseCases/User/GetReferral";
+import { getCertificateByIdUseCase } from "../../UseCases/User/GetCertificateById";
+import { GetReferral } from "../../UseCases/User/getReferralUseCase";
 export class UserController {
   constructor(
     private registerUser: RegisterUser,
     private loginUser: LoginUser,
     private dashboardUsecase: GetUserDashboard , 
     private ExploreUsecase: GetTrending,
-
+    private ReferralUseCase: GetReferralIdUseCase,
+    private getCertificateByIdCase: getCertificateByIdUseCase,
+    private getReferralUseCase: GetReferral
   ) {}
 
   async register(req: Request, res: Response) {
@@ -48,9 +53,9 @@ export class UserController {
         return res.status(401).json({ error: err.message });
     }
   }
-   async getDashBoard(req: Request, res: Response) {
+   async getDashBoard(req: any, res: Response) {
   try {
-    const userId = req.query.userId as string;
+    const userId = req.user?.id as string;
 
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -64,4 +69,57 @@ export class UserController {
     res.status(500).json({ message: "Failed to load dashboard" });
   }
 };
+
+  async getReferralLink(req: Request, res: Response) {
+     const {userId ,quizId } = req.body;
+
+
+
+  const link = await this.ReferralUseCase.execute({
+    quizId,
+    userId,
+  });
+
+  return res.status(200).json({ referralLink: link });
+  }
+
+
+  async getCertificateById(req: Request, res: Response) {
+    const { certificateId } = req.params;
+    try {
+      const certificateDetails = await this.getCertificateByIdCase.execute(certificateId);
+      return res.status(200).json(certificateDetails);
+    } catch (err: any) {
+      return res.status(404).json({ error: err.message });
+    }
+  }
+ async getReferrals(req: any, res: Response) {
+    const userId = req.user?.id as string;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const referrals = await this.getReferralUseCase.execute(userId);
+      return res.status(200).json(referrals);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  async getCreations(req: any, res: Response) {
+    const userId = req.user?.id as string;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const creations = await this.getReferralUseCase.execute(userId);
+      return res.status(200).json(creations);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
 }
