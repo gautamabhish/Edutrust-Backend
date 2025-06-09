@@ -7,6 +7,8 @@ import { GetTrending } from "../../UseCases/User/getTrending";
 import { GetReferralIdUseCase } from "../../UseCases/User/GetReferral";
 import { getCertificateByIdUseCase } from "../../UseCases/User/GetCertificateById";
 import { GetReferral } from "../../UseCases/User/getReferralUseCase";
+import { updateProfilePic } from "../../UseCases/User/updateProfilePic";
+import { getCreations } from "../../UseCases/User/GetCreation";
 export class UserController {
   constructor(
     private registerUser: RegisterUser,
@@ -15,7 +17,10 @@ export class UserController {
     private ExploreUsecase: GetTrending,
     private ReferralUseCase: GetReferralIdUseCase,
     private getCertificateByIdCase: getCertificateByIdUseCase,
-    private getReferralUseCase: GetReferral
+    private getReferralUseCase: GetReferral,
+    private updateProfilePicUsecase: updateProfilePic,
+    private creationUseCase : getCreations
+    
   ) {}
 
   async register(req: Request, res: Response) {
@@ -116,8 +121,27 @@ export class UserController {
     }
 
     try {
-      const creations = await this.getReferralUseCase.execute(userId);
+      console.log("Fetching creations for user:", userId);
+      const creations = await this.creationUseCase.execute(userId);
       return res.status(200).json(creations);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+  async updateProfilePic(req: any, res: Response) {
+    const userId = req.user?.id as string;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      console.log("Updating profile picture for user:", req.body);
+      const { profilePicUrl } = req.body;
+      console.log("Profile Pic URL:", profilePicUrl);
+      // Assuming you have a method to update the user's profile picture
+      await this.updateProfilePicUsecase.execute(userId, profilePicUrl);
+      return res.status(200).json({ message: "Profile picture updated successfully" });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }

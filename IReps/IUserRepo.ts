@@ -76,4 +76,6 @@ export interface IUserRepository {
   getUserQuizzes(userId: string): Promise<CourseDTO[]>;
   getReferrals(userId: string): Promise<any>; // returns an array of users referred by the given user
   getCreations(userId: string): Promise<any>; // returns an array of courses created by the user
+  updateProfilePic(userId: string, imageUrl: string): Promise<void>;
+  getProfilePic(userId: string): Promise<string | null>;
 }

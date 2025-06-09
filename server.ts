@@ -1,5 +1,4 @@
 import express from 'express';
-
 import userRoutes from './Interfaces/Routes/userRoutes';
 import quizRoutes from './Interfaces/Routes/quizRoutes';
 import { paymentRoutes } from './Interfaces/Routes/PaymentRoutes';
@@ -12,7 +11,7 @@ const app = express();
 app.use(cookieParser());
 app.use(cors(
   {
-    origin: process.env.CLIENT_URL || 'http://192.168.1.7:3000', // Replace with your client URL
+    origin: ['http://localhost:3000','http://192.168.1.8:3000'], // Replace with your client URL
     credentials: true, // Allow cookies to be sent with requests
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],

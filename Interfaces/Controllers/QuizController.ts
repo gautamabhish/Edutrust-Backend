@@ -18,6 +18,7 @@ export class QuizController {
       const data = new QuizEntity(req.body);
       const quizId = await createQuizUseCase.execute(data);
       res.status(201).json({ success: true, quizId });
+
     } catch (error) {
       console.error("Create quiz failed", error);
       res.status(500).json({ error: "Failed to create quiz" });
@@ -41,7 +42,7 @@ export class QuizController {
     const quiz = await GetQuizByIdPaidCase.execute(id ,userId );
     res.status(200).json(quiz);
   } catch (err: any) {
-    if(err.message === "Access denied") res.status(403).json({ message: err.message });
+    if(err.message === "Access denied") return res.status(403).json({ message: err.message });
     res.status(404).json({ message: err.message || "Quiz not found" });
   }
 }

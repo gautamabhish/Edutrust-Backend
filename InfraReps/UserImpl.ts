@@ -120,7 +120,13 @@ export class UserRepositoryImpl implements IUserRepository {
       score: cert.score,
     }));
   }
-
+  async getProfilePic(userId: string): Promise<string|null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { profilePic: true },
+    });
+    return user?.profilePic || null;
+  }
   async getRecommendedCourses(userId: string): Promise<CourseDTO[]> {
     const recommendedQuizzes = await this.prisma.quiz.findMany({
       where: {
@@ -166,6 +172,7 @@ export class UserRepositoryImpl implements IUserRepository {
         duration: true,
        creatorName : true ,
        verified : true ,
+      //  tags: true, // Assuming tags is a field in the quiz model
       },
     });
 
@@ -234,15 +241,18 @@ export class UserRepositoryImpl implements IUserRepository {
       }
     }
       if (finalAmount === 0) {
-        this.prisma.quizAttempt.create({
-          data: {   
-            id: crypto.randomUUID(),
-            userId,
-            quizId,
-            startedAt: new Date(),
-            finishedAt: new Date(), // Assuming instant unlock
-          },
-        });
+       this.prisma.$transaction(async (tx) => {
+      // 1c) If quiz is free, create a QuizAttempt directly
+      await tx.quizAttempt.create({
+        data: {
+          id: crypto.randomUUID(),    
+          userId,
+          quizId,
+          startedAt: new Date(),
+          finishedAt: new Date(), // Assuming instant unlock
+        },
+      });
+    });
     return {
       orderId: "IFITISFREE",
       amount: 0,
@@ -523,8 +533,18 @@ async getCreations(userId: string): Promise<any> {
         earnings,
       };
     });
+
+
+
   });
 }
 
+
+async updateProfilePic(userId: string, imageUrl: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { profilePic: imageUrl },
+    });
+  }
 
 }

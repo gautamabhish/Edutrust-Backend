@@ -8,6 +8,173 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Certificate {
+  id         String   @id @default(uuid())
+  userId     String
+  quizId     String
+  issuedAt   DateTime @default(now())
+  score      Float
+  count      Int
+  totalScore Float
+  quiz       Quiz     @relation(fields: [quizId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, quizId])
+  @@index([quizId], map: "Certificate_quizId_fkey")
+}
+
+model TestSeries {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  createdAt   DateTime @default(now())
+  quizzes     Quiz[]   @relation("TestSeriesQuizzes")
+  users       User[]   @relation("UserTestSeries")
+}
+
+model User {
+  id             String          @id @default(uuid())
+  name           String
+  email          String          @unique
+  password       String
+  createdAt      DateTime        @default(now())
+  role           Prisma_Role     @default(Default)
+  profilePic     String          @default("/user.jpg")
+  certificates   Certificate[]
+  quizzesCreated Quiz[]          @relation("QuizCreator")
+  quizAttempts   QuizAttempt[]
+  quizRatings    QuizRating[]
+  referredAs     Referral[]      @relation("ReferredUser")
+  referralsMade  Referral[]      @relation("Referrer")
+  referralTokens ReferralToken[] @relation("UserReferralTokens")
+  testSeries     TestSeries[]    @relation("UserTestSeries")
+}
+
+model Quiz {
+  id              String            @id @default(uuid())
+  title           String
+  description     String
+  createdAt       DateTime          @default(now())
+  creatorId       String
+  courseId        String?
+  difficulty      Prisma_Difficulty
+  visibleToPublic Boolean           @default(true)
+  backtrack       Boolean           @default(true)
+  duration        Int
+  randomize       Boolean           @default(false)
+  thumbnailURL    String            @default("https://res.cloudinary.com/dcn4q3zt1/image/upload/v1748680038/pexels-leeloothefirst-5428830_tmxie9.jpg")
+  avgRating       Float             @default(0)
+  currency        String?           @default("inr")
+  price           Float             @default(0)
+  testSeriesId    String?
+  creatorName     String
+  verified        Boolean           @default(false)
+  certificates    Certificate[]
+  questions       Question[]
+  course          Course?           @relation(fields: [courseId], references: [id])
+  creator         User              @relation("QuizCreator", fields: [creatorId], references: [id])
+  testSeries      TestSeries?       @relation("TestSeriesQuizzes", fields: [testSeriesId], references: [id])
+  quizAttempts    QuizAttempt[]
+  quizRatings     QuizRating[]
+  referrals       Referral[]
+  referralTokens  ReferralToken[]   @relation("QuizReferralTokens")
+  tags            Tag[]             @relation("QuizTags")
+
+  @@index([courseId], map: "Quiz_courseId_fkey")
+  @@index([creatorId], map: "Quiz_creatorId_fkey")
+  @@index([testSeriesId], map: "Quiz_testSeriesId_fkey")
+}
+
+model Course {
+  id      String  @id @default(uuid())
+  name    String
+  url     String? @unique
+  quizzes Quiz[]
+  tags    Tag[]   @relation("CourseTags")
+}
+
+model Question {
+  id             String       @id
+  quizId         String
+  type           QuestionType
+  answerText     String?
+  attachFileType String?
+  attachFileURL  String?
+  correctAnswers Json
+  options        Json
+  points         Int
+  text           String
+  negPoints      Int
+  quiz           Quiz         @relation(fields: [quizId], references: [id])
+
+  @@index([quizId], map: "Question_quizId_fkey")
+}
+
+model QuizAttempt {
+  id         String    @id @default(uuid())
+  userId     String
+  quizId     String
+  score      Float?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  quiz       Quiz      @relation(fields: [quizId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
+
+  @@index([quizId], map: "QuizAttempt_quizId_fkey")
+  @@index([userId], map: "QuizAttempt_userId_fkey")
+}
+
+model Referral {
+  id             String   @id @default(uuid())
+  referrerId     String
+  referredUserId String?
+  quizId         String
+  earnedAmount   Float    @default(0)
+  createdAt      DateTime @default(now())
+  redeemed       Boolean  @default(false)
+  quiz           Quiz     @relation(fields: [quizId], references: [id])
+  referredUser   User?    @relation("ReferredUser", fields: [referredUserId], references: [id])
+  referrer       User     @relation("Referrer", fields: [referrerId], references: [id])
+
+  @@index([quizId], map: "Referral_quizId_fkey")
+  @@index([referredUserId], map: "Referral_referredUserId_fkey")
+  @@index([referrerId], map: "Referral_referrerId_fkey")
+}
+
+model ReferralToken {
+  token      String   @id @default(uuid())
+  quizId     String
+  referrerId String
+  createdAt  DateTime @default(now())
+  quiz       Quiz     @relation("QuizReferralTokens", fields: [quizId], references: [id])
+  referrer   User     @relation("UserReferralTokens", fields: [referrerId], references: [id])
+
+  @@index([quizId], map: "ReferralToken_quizId_fkey")
+  @@index([referrerId], map: "ReferralToken_referrerId_fkey")
+}
+
+model Tag {
+  id      String   @id @default(uuid())
+  name    String   @unique
+  courses Course[] @relation("CourseTags")
+  quizzes Quiz[]   @relation("QuizTags")
+}
+
+model QuizRating {
+  id        String   @id @default(uuid())
+  userId    String
+  quizId    String
+  rating    Float
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  quiz      Quiz     @relation(fields: [quizId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, quizId])
+  @@index([quizId], map: "QuizRating_quizId_fkey")
+}
+
 enum Prisma_Role {
   Default
   Admin
@@ -25,168 +192,4 @@ enum QuestionType {
   MultipleChoice
   Subjective
   File
-}
-
-model Certificate {
-  id       String   @id @default(uuid())
-  userId   String
-  quizId   String
-  issuedAt DateTime @default(now())
-  count   Int  
-  score    Float
-  totalScore Float 
-
-  user User @relation(fields: [userId], references: [id])
-
-  quiz Quiz @relation(fields: [quizId], references: [id])
-  @@unique([userId, quizId])
-}
-
-model TestSeries {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  createdAt   DateTime @default(now())
-
-  quizzes Quiz[] @relation("TestSeriesQuizzes")
-  users   User[] @relation("UserTestSeries")
-}
-
-model User {
-  id        String      @id @default(uuid())
-  name      String
-  email     String      @unique
-  password  String
-  createdAt DateTime    @default(now())
-  role      Prisma_Role @default(Default)
-
-  testSeries TestSeries[] @relation("UserTestSeries")
-
-  quizzesCreated Quiz[]     @relation("QuizCreator")
-  referralsMade  Referral[] @relation("Referrer")
-  referredAs     Referral[] @relation("ReferredUser")
-
-  quizRatings QuizRating[]
-
-
-  certificates   Certificate[]
-  quizAttempts   QuizAttempt[]
-  referralTokens ReferralToken[] @relation("UserReferralTokens")
-}
-
-model Quiz {
-  id              String            @id @default(uuid())
-  courseId        String?
-  creatorId       String
-  creatorName     String
-  testSeriesId    String?
-  currency        String?           @default("inr")
-  title           String
-  description     String
-  thumbnailURL    String            @default("https://res.cloudinary.com/dcn4q3zt1/image/upload/v1748680038/pexels-leeloothefirst-5428830_tmxie9.jpg")
-  duration        Int
-  backtrack       Boolean           @default(true)
-  randomize       Boolean           @default(false)
-  createdAt       DateTime          @default(now())
-  visibleToPublic Boolean           @default(true)
-  difficulty      Prisma_Difficulty
-  price           Float             @default(0)
-  avgRating       Float             @default(0)
-  verified        Boolean         @default(false)
-  course     Course?     @relation(fields: [courseId], references: [id])
-  creator    User        @relation("QuizCreator", fields: [creatorId], references: [id])
-  testSeries TestSeries? @relation("TestSeriesQuizzes", fields: [testSeriesId], references: [id])
-
-  questions   Question[]
-  referrals   Referral[]
-  quizRatings QuizRating[]
-  tags        Tag[]        @relation("QuizTags")
-
-  certificates   Certificate[]
-  quizAttempts   QuizAttempt[]
-  referralTokens ReferralToken[] @relation("QuizReferralTokens")
-}
-
-model Course {
-  id   String  @id @default(uuid())
-  name String
-  url  String? @unique
-
-  quizzes Quiz[]
-  tags    Tag[]  @relation("CourseTags")
-}
-
-model Question {
-  id             String       @id
-  quizId         String
-  type           QuestionType
-  text           String
-  points         Int
-  negPoints      Int
-  options        Json
-  correctAnswers Json
-  answerText     String?
-  attachFileType String?
-  attachFileURL  String?
-
-  quiz Quiz @relation(fields: [quizId], references: [id])
-}
-
-model QuizAttempt {
-  id         String    @id @default(uuid())
-  userId     String
-  quizId     String
-  score      Float?
-  startedAt  DateTime  @default(now())
-  finishedAt DateTime?
-
-  user User @relation(fields: [userId], references: [id])
-  quiz Quiz @relation(fields: [quizId], references: [id])
-}
-
-model Referral {
-  id             String   @id @default(uuid())
-  referrerId     String
-  referredUserId String?
-  quizId         String
-  earnedAmount   Float    @default(0)
-  createdAt      DateTime @default(now())
-  redeemed       Boolean  @default(false)
-
-  referrer     User  @relation("Referrer", fields: [referrerId], references: [id])
-  referredUser User? @relation("ReferredUser", fields: [referredUserId], references: [id])
-  quiz         Quiz  @relation(fields: [quizId], references: [id])
-}
-
-model ReferralToken {
-  token      String   @id @default(uuid())
-  quizId     String
-  referrerId String
-  createdAt  DateTime @default(now())
-
-  referrer User @relation("UserReferralTokens", fields: [referrerId], references: [id])
-  quiz     Quiz @relation("QuizReferralTokens", fields: [quizId], references: [id])
-}
-
-model Tag {
-  id   String @id @default(uuid())
-  name String @unique
-
-  quizzes Quiz[]   @relation("QuizTags")
-  courses Course[] @relation("CourseTags")
-}
-
-model QuizRating {
-  id        String   @id @default(uuid())
-  userId    String
-  quizId    String
-  rating    Float
-  comment   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id])
-  quiz Quiz @relation(fields: [quizId], references: [id])
-
-  @@unique([userId, quizId])
 }

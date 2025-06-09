@@ -20,6 +20,7 @@ export class PrismaQuizRepo implements IQuizRepository {
       case "Single Correct":
         return QuestionType.SingleChoice;
       case "Multi Correct":
+      case "Multiple Correct":
         return QuestionType.MultipleChoice;
       default:
         throw new Error(`Unknown question type: ${type}`);
@@ -79,6 +80,7 @@ export class PrismaQuizRepo implements IQuizRepository {
         }
       }
 
+      console.log(data.Questions)
       // Add Questions
       for (const question of data.Questions) {
         await tx.question.create({
@@ -286,6 +288,8 @@ async findByIdPaid(quizId: string, userId: string): Promise<any> {
       quizId,
     },
   });
+  // If attempt exists, check if it's finished  
+  console.log("Attempt found:", attempt);
 
   if (!attempt) {
     throw new Error("Access denied");
@@ -367,6 +371,16 @@ async submitAttempt(data: {
 
   return await prisma.$transaction(async (tx) => {
     // 1) Load all questions for this quiz once
+    const owns = await tx.quizAttempt.findFirst({
+      where: {
+        userId: data.userId,
+        quizId: data.quizId,
+        finishedAt: null, // Means it's in-progress
+      },
+    });
+    if (!owns) {
+      throw new Error("You don't own this quiz or it's not in-progress.");
+    }
     const questions = await tx.question.findMany({
       where: { quizId: data.quizId }
     });
@@ -499,9 +513,7 @@ try {
 } catch (error) {
   console.log('Certificate creation/upsert failed:', error);
 }
-
-
-    // 6) Return everything
+ // 6) Return everything
     return  await this.getSubmissionStats(attemptRecord.id, data.userId,tx);
   });
 }

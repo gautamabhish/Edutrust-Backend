@@ -22,4 +22,5 @@ export class User {
   validatePassword(input: string): boolean {
     return input === this.password;
   }
+
 }
