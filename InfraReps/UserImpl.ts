@@ -158,11 +158,11 @@ export class UserRepositoryImpl implements IUserRepository {
     }));
   }
 
-
-    async getExplore(): Promise<CourseDTO[]> {
-    const quizzes = await this.prisma.quiz.findMany({
+async getExplore(): Promise<any> {
+  const [quizzes] = await this.prisma.$transaction([
+    this.prisma.quiz.findMany({
       where: { visibleToPublic: true },
-      take: 10, // Limit to 10 trending quizzes
+      take: 10,
       select: {
         id: true,
         title: true,
@@ -170,26 +170,42 @@ export class UserRepositoryImpl implements IUserRepository {
         thumbnailURL: true,
         price: true,
         duration: true,
-       creatorName : true ,
-       verified : true ,
-      //  tags: true, // Assuming tags is a field in the quiz model
+        verified: true,
+        creatorName: true,
+        creatorId: true, // Assuming this links to User
       },
-    });
+    }),
+  ]);
 
-    return quizzes.map((quiz) => ({
-      id: quiz.id,
-      title: quiz.title,
-      description: quiz.description,
-      thumbnailURL: quiz.thumbnailURL ?? "",
-      price: quiz.price,
-      duration: quiz.duration,
-      verified: quiz.verified ?? false, // Assuming verified is a boolean field
-      
-        creatorName: quiz.creatorName,
-      
+  // Fetch all user profile pics in one go to avoid N+1 queries
+  const creatorIds = quizzes.map((q) => q.creatorId);
+  const creators = await this.prisma.user.findMany({
+    where: {
+      id: { in: creatorIds },
+    },
+    select: {
+      id: true,
+      name: true,
+      profilePic: true,
+    },
+  });
 
-    }));
-  }
+  const creatorMap = new Map(
+    creators.map((u) => [u.id, { name: u.name, profilePic: u.profilePic }])
+  );
+
+  return quizzes.map((quiz) => ({
+    id: quiz.id,
+    title: quiz.title,
+    description: quiz.description,
+    thumbnailURL: quiz.thumbnailURL ?? "",
+    price: quiz.price,
+    duration: quiz.duration,
+    verified: quiz.verified ?? false,
+    creatorName: creatorMap.get(quiz.creatorId)?.name ?? quiz.creatorName,
+    creatorProfilePic: creatorMap.get(quiz.creatorId)?.profilePic ?? null,
+  }));
+}
 
    async getOrCreateReferralToken(quizId: string, referrerId: string): Promise<string> {
     const existing = await this.prisma.referralToken.findFirst({
