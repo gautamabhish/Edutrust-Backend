@@ -31,7 +31,7 @@ CREATE TABLE `User` (
     `password` VARCHAR(191) NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `role` ENUM('Default', 'Admin', 'SuperAdmin') NOT NULL DEFAULT 'Default',
-    `profilePic` VARCHAR(191) NOT NULL DEFAULT 'https://avatar.iran.liara.run/public',
+    `profilePic` VARCHAR(191) NOT NULL DEFAULT '/user.jpg',
 
     UNIQUE INDEX `User_email_key`(`email`),
     PRIMARY KEY (`id`)
