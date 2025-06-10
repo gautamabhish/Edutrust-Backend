@@ -6,7 +6,8 @@
     "tsc": "tsc",
     "dev": "nodemon server.ts",
     "start": "node dist/server.js",
-    "build": "tsc",
+    "build": "tsc && cp -r prisma dist/prisma",
+     "postinstall": " npx prisma generate",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
