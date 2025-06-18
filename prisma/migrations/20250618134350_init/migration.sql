@@ -24,6 +24,14 @@ CREATE TABLE `TestSeries` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `UserTestSeries` (
+    `A` VARCHAR(191) NOT NULL,
+    `B` VARCHAR(191) NOT NULL,
+
+    PRIMARY KEY (`A`, `B`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `User` (
     `id` VARCHAR(191) NOT NULL,
     `name` VARCHAR(191) NOT NULL,
@@ -72,6 +80,14 @@ CREATE TABLE `Course` (
 
     UNIQUE INDEX `Course_url_key`(`url`),
     PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CourseTag` (
+    `courseId` VARCHAR(191) NOT NULL,
+    `tagId` VARCHAR(191) NOT NULL,
+
+    PRIMARY KEY (`courseId`, `tagId`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
@@ -159,30 +175,11 @@ CREATE TABLE `QuizRating` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `_UserTestSeries` (
-    `A` VARCHAR(191) NOT NULL,
-    `B` VARCHAR(191) NOT NULL,
+CREATE TABLE `QuizTag` (
+    `quizId` VARCHAR(191) NOT NULL,
+    `tagId` VARCHAR(191) NOT NULL,
 
-    UNIQUE INDEX `_UserTestSeries_AB_unique`(`A`, `B`),
-    INDEX `_UserTestSeries_B_index`(`B`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `_QuizTags` (
-    `A` VARCHAR(191) NOT NULL,
-    `B` VARCHAR(191) NOT NULL,
-
-    UNIQUE INDEX `_QuizTags_AB_unique`(`A`, `B`),
-    INDEX `_QuizTags_B_index`(`B`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `_CourseTags` (
-    `A` VARCHAR(191) NOT NULL,
-    `B` VARCHAR(191) NOT NULL,
-
-    UNIQUE INDEX `_CourseTags_AB_unique`(`A`, `B`),
-    INDEX `_CourseTags_B_index`(`B`)
+    PRIMARY KEY (`quizId`, `tagId`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
@@ -192,6 +189,12 @@ ALTER TABLE `Certificate` ADD CONSTRAINT `Certificate_quizId_fkey` FOREIGN KEY (
 ALTER TABLE `Certificate` ADD CONSTRAINT `Certificate_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `UserTestSeries` ADD CONSTRAINT `UserTestSeries_B_fkey` FOREIGN KEY (`B`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `UserTestSeries` ADD CONSTRAINT `UserTestSeries_A_fkey` FOREIGN KEY (`A`) REFERENCES `TestSeries`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `Quiz` ADD CONSTRAINT `Quiz_courseId_fkey` FOREIGN KEY (`courseId`) REFERENCES `Course`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -199,6 +202,12 @@ ALTER TABLE `Quiz` ADD CONSTRAINT `Quiz_creatorId_fkey` FOREIGN KEY (`creatorId`
 
 -- AddForeignKey
 ALTER TABLE `Quiz` ADD CONSTRAINT `Quiz_testSeriesId_fkey` FOREIGN KEY (`testSeriesId`) REFERENCES `TestSeries`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `CourseTag` ADD CONSTRAINT `CourseTag_courseId_fkey` FOREIGN KEY (`courseId`) REFERENCES `Course`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `CourseTag` ADD CONSTRAINT `CourseTag_tagId_fkey` FOREIGN KEY (`tagId`) REFERENCES `Tag`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Question` ADD CONSTRAINT `Question_quizId_fkey` FOREIGN KEY (`quizId`) REFERENCES `Quiz`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -231,19 +240,7 @@ ALTER TABLE `QuizRating` ADD CONSTRAINT `QuizRating_quizId_fkey` FOREIGN KEY (`q
 ALTER TABLE `QuizRating` ADD CONSTRAINT `QuizRating_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `_UserTestSeries` ADD CONSTRAINT `_UserTestSeries_A_fkey` FOREIGN KEY (`A`) REFERENCES `TestSeries`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `QuizTag` ADD CONSTRAINT `QuizTag_quizId_fkey` FOREIGN KEY (`quizId`) REFERENCES `Quiz`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `_UserTestSeries` ADD CONSTRAINT `_UserTestSeries_B_fkey` FOREIGN KEY (`B`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `_QuizTags` ADD CONSTRAINT `_QuizTags_A_fkey` FOREIGN KEY (`A`) REFERENCES `Quiz`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `_QuizTags` ADD CONSTRAINT `_QuizTags_B_fkey` FOREIGN KEY (`B`) REFERENCES `Tag`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `_CourseTags` ADD CONSTRAINT `_CourseTags_A_fkey` FOREIGN KEY (`A`) REFERENCES `Course`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `_CourseTags` ADD CONSTRAINT `_CourseTags_B_fkey` FOREIGN KEY (`B`) REFERENCES `Tag`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `QuizTag` ADD CONSTRAINT `QuizTag_tagId_fkey` FOREIGN KEY (`tagId`) REFERENCES `Tag`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

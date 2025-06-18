@@ -29,7 +29,17 @@ model TestSeries {
   description String?
   createdAt   DateTime @default(now())
   quizzes     Quiz[]   @relation("TestSeriesQuizzes")
-  users       User[]   @relation("UserTestSeries")
+  users UserTestSeries[]
+}
+
+model UserTestSeries {
+  A  String
+  B  String
+
+  user        User        @relation(fields: [B], references: [id])
+  testSeries  TestSeries  @relation(fields: [A], references: [id])
+
+  @@id([A, B])
 }
 
 model User {
@@ -47,8 +57,9 @@ model User {
   referredAs     Referral[]      @relation("ReferredUser")
   referralsMade  Referral[]      @relation("Referrer")
   referralTokens ReferralToken[] @relation("UserReferralTokens")
-  testSeries     TestSeries[]    @relation("UserTestSeries")
+  testSeries UserTestSeries[]
 }
+
 
 model Quiz {
   id              String            @id @default(uuid())
@@ -78,7 +89,7 @@ model Quiz {
   quizRatings     QuizRating[]
   referrals       Referral[]
   referralTokens  ReferralToken[]   @relation("QuizReferralTokens")
-  tags            Tag[]             @relation("QuizTags")
+  quizTags QuizTag[]
 
   @@index([courseId], map: "Quiz_courseId_fkey")
   @@index([creatorId], map: "Quiz_creatorId_fkey")
@@ -90,8 +101,19 @@ model Course {
   name    String
   url     String? @unique
   quizzes Quiz[]
-  tags    Tag[]   @relation("CourseTags")
+  courseTags CourseTag[]
 }
+
+model CourseTag {
+  courseId String
+  tagId    String
+
+  course Course @relation(fields: [courseId], references: [id])
+  tag    Tag    @relation(fields: [tagId], references: [id])
+
+  @@id([courseId, tagId]) // ✅ Composite primary key
+}
+
 
 model Question {
   id             String       @id @default(uuid())
@@ -156,8 +178,8 @@ model ReferralToken {
 model Tag {
   id      String   @id @default(uuid())
   name    String   @unique
-  courses Course[] @relation("CourseTags")
-  quizzes Quiz[]   @relation("QuizTags")
+  courseTags CourseTag[]
+ quizTags QuizTag[]
 }
 
 model QuizRating {
@@ -186,6 +208,17 @@ enum Prisma_Difficulty {
   Medium
   Hard
 }
+
+model QuizTag {
+  quizId String
+  tagId  String
+
+  quiz Quiz @relation(fields: [quizId], references: [id])
+  tag  Tag  @relation(fields: [tagId], references: [id])
+
+  @@id([quizId, tagId]) // ✅ Composite primary key
+}
+
 
 enum QuestionType {
   SingleChoice

@@ -69,14 +69,19 @@ export class PrismaQuizRepo implements IQuizRepository {
             update: {},
             create: { id: uuid(), name: tag },
           });
-          await tx.quiz.update({
-            where: { id: quizId },
-            data: {
-              tags: {
-                connect: { id: tagRecord.id },
-              },
-            },
-          });
+         await tx.quizTag.upsert({
+      where: {
+        quizId_tagId: {
+          quizId: quizId,
+          tagId: tagRecord.id,
+        },
+      },
+      update: {},
+      create: {
+        quizId: quizId,
+        tagId: tagRecord.id,
+      },
+    });
         }
       }
 
@@ -111,7 +116,11 @@ async findById(id: string): Promise<any> {
     include: {
       creator: { select: { id: true, name: true } },
       course: { select: { id: true, name: true, url: true } },
-      tags: { select: { name: true } },
+      quizTags: {
+      include: {
+        tag: { select: { name: true } },
+      },
+    },
     },
   });
 
@@ -215,7 +224,7 @@ async findById(id: string): Promise<any> {
     difficulty: quiz.difficulty,
     creator: quiz.creator,
     course: quiz.course,
-    tags: quiz.tags.map(tag => tag.name),
+    tags: quiz.quizTags.map(qt => qt.tag.name),
     price: quiz.price,
     currency: quiz.currency,
     backtrack: quiz.backtrack,
