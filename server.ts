@@ -11,7 +11,7 @@ const app = express();
 app.use(cookieParser());
 app.use(cors(
   {
-    origin: ['http://localhost:3000','http://192.168.1.8:3000',"https://skillpass.org","https://skillpass.vercel.app"], // Replace with your client URL
+    origin: ['http://localhost:3000','http://192.168.1.8:3000',"https://www.skillpass.org","https://skillpass.vercel.app"], // Replace with your client URL
     credentials: true, // Allow cookies to be sent with requests
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
