@@ -7,7 +7,7 @@
     "dev": "nodemon server.ts",
     "start": "node dist/server.js",
     "build": "tsc &&  cp -r generated dist/generated && cp -r prisma dist/prisma",
-     "postinstall": " npx prisma generate",
+    "postinstall": " npx prisma generate",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -27,6 +27,7 @@
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^7.0.3",
     "nodemon": "^3.1.9",
+    "otp-generator": "^4.0.1",
     "prisma": "^6.9.0",
     "razorpay": "^2.9.6",
     "ts-node-dev": "^2.0.0",

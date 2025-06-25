@@ -9,18 +9,20 @@ import { getCertificateByIdUseCase } from "../../UseCases/User/GetCertificateByI
 import { GetReferral } from "../../UseCases/User/getReferralUseCase";
 import { updateProfilePic } from "../../UseCases/User/updateProfilePic";
 import { getCreations } from "../../UseCases/User/GetCreation";
+import { VerifyOTP } from "../../UseCases/User/VerifyOTP";
 export class UserController {
   constructor(
     private registerUser: RegisterUser,
     private loginUser: LoginUser,
-    private dashboardUsecase: GetUserDashboard , 
+    private dashboardUsecase: GetUserDashboard,
     private ExploreUsecase: GetTrending,
     private ReferralUseCase: GetReferralIdUseCase,
     private getCertificateByIdCase: getCertificateByIdUseCase,
     private getReferralUseCase: GetReferral,
     private updateProfilePicUsecase: updateProfilePic,
-    private creationUseCase : getCreations
-    
+    private creationUseCase: getCreations,
+    private VerifyOTP: VerifyOTP
+
   ) {}
 
   async register(req: Request, res: Response) {
@@ -41,6 +43,16 @@ export class UserController {
       return res.status(500).json({ error: err.message });
     }
   }
+  async verifyOTP(req: Request, res: Response) {
+    try {
+      const { email, otp } = req.body;
+      const result = await this.VerifyOTP.execute(email, otp);
+
+      return res.status(201).json(result);
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
 
   async login(req: Request, res: Response) {
     try {
@@ -58,47 +70,46 @@ export class UserController {
         return res.status(401).json({ error: err.message });
     }
   }
-   async getDashBoard(req: any, res: Response) {
-  try {
-    const userId = req.user?.id as string;
+  async getDashBoard(req: any, res: Response) {
+    try {
+      const userId = req.user?.id as string;
 
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const result = await this.dashboardUsecase.execute(userId);
+
+      res.json(result);
+    } catch (err) {
+      console.error("Dashboard error:", err);
+      res.status(500).json({ message: "Failed to load dashboard" });
     }
-
-    const result = await this.dashboardUsecase.execute(userId);
-
-    res.json(result);
-  } catch (err) {
-    console.error("Dashboard error:", err);
-    res.status(500).json({ message: "Failed to load dashboard" });
   }
-};
 
   async getReferralLink(req: Request, res: Response) {
-     const {userId ,quizId } = req.body;
+    const { userId, quizId } = req.body;
 
+    const link = await this.ReferralUseCase.execute({
+      quizId,
+      userId,
+    });
 
-
-  const link = await this.ReferralUseCase.execute({
-    quizId,
-    userId,
-  });
-
-  return res.status(200).json({ referralLink: link });
+    return res.status(200).json({ referralLink: link });
   }
-
 
   async getCertificateById(req: Request, res: Response) {
     const { certificateId } = req.params;
     try {
-      const certificateDetails = await this.getCertificateByIdCase.execute(certificateId);
+      const certificateDetails = await this.getCertificateByIdCase.execute(
+        certificateId
+      );
       return res.status(200).json(certificateDetails);
     } catch (err: any) {
       return res.status(404).json({ error: err.message });
     }
   }
- async getReferrals(req: any, res: Response) {
+  async getReferrals(req: any, res: Response) {
     const userId = req.user?.id as string;
 
     if (!userId) {
@@ -141,7 +152,9 @@ export class UserController {
       console.log("Profile Pic URL:", profilePicUrl);
       // Assuming you have a method to update the user's profile picture
       await this.updateProfilePicUsecase.execute(userId, profilePicUrl);
-      return res.status(200).json({ message: "Profile picture updated successfully" });
+      return res
+        .status(200)
+        .json({ message: "Profile picture updated successfully" });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }

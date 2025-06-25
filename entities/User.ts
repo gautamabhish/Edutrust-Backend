@@ -11,6 +11,9 @@ export class User {
     public name: string,
     public email: string,
     private password: string,
+    public otp: string,
+    public otpExpires: Date = new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
+    public isVerified: boolean = false,
     public createdAt: Date = new Date(),
     public role: Role = Role.Default
   ) {}
