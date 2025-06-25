@@ -2,7 +2,7 @@ import { User,Role } from "../../entities/User";
 import { IUserRepository } from "../../IReps/IUserRepo";
 import { v4 as uuid } from "uuid";
 import bcrypt from "bcrypt";
-import otpGenerator from "otp-generator";
+const otpGenerator = require("otp-generator");
 import { sendOTPEmail } from "../../utils/mail-config";
 
 export class RegisterUser {
