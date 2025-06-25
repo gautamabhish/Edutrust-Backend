@@ -57,17 +57,17 @@ export class UserController {
   async login(req: Request, res: Response) {
     try {
       const { email, password } = req.body;
-      const { user, token } = await this.loginUser.execute(email, password);
-
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
-      });
-      return res.status(200).json({ user });
-    } catch (err: any) {
-      return res.status(401).json({ error: err.message });
+      const {user,token} = await this.loginUser.execute(email, password);
+     
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: "none",
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+    });
+      return res.status(200).json( {user} );
+    } catch (err:any) {
+        return res.status(401).json({ error: err.message });
     }
   }
   async getDashBoard(req: any, res: Response) {
