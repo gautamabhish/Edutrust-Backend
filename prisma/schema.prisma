@@ -57,6 +57,7 @@ model User {
   quizzesCreated Quiz[]          @relation("QuizCreator")
   quizAttempts   QuizAttempt[]
   quizRatings    QuizRating[]
+  creatorVerified Boolean  @default(false)
   referredAs     Referral[]      @relation("ReferredUser")
   referralsMade  Referral[]      @relation("Referrer")
   referralTokens ReferralToken[] @relation("UserReferralTokens")

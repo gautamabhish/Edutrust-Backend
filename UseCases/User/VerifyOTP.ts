@@ -7,8 +7,12 @@ export class VerifyOTP {
   async execute( email: string, otp: string) {
     const existing = await this.userRepo.findByEmail(email);
     if (!existing) throw new Error("User Not Found");
+    // console.log("Verifying OTP for email:", email);
     if(existing.isVerified) throw new Error("User already verified");
-    if (existing.otp !== otp) throw new Error("Invalid OTP");
+    // console.log("Verifying OTP for user:", otp);
+    // console.log("User details:", existing);
+  //  console.log(typeof existing.otp, typeof otp);
+   if(existing.otp !== otp) throw new Error("Invalid OTP");
     if (existing.otpExpires < new Date()) throw new Error("OTP expired");
     // Update user to mark as verified
     existing.isVerified = true;

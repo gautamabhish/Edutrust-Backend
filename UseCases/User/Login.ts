@@ -14,7 +14,9 @@ export class LoginUser {
 
     const match = await bcrypt.compare(password, user.getPassword());
     if (!match) throw new Error("Invalid credentials");
-
+    if(user.isVerified === false) {
+      throw new Error("Please verify your email before logging in.Registration is incomplete.");
+    }
     const payload = { id: user.id, role: user.role, email: user.email };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 

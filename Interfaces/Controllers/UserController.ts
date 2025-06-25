@@ -48,7 +48,7 @@ export class UserController {
       const { email, otp } = req.body;
       const result = await this.VerifyOTP.execute(email, otp);
 
-      return res.status(201).json(result);
+      return res.status(200).json(result);
     } catch (err: any) {
       return res.status(400).json({ error: err.message });
     }

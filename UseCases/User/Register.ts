@@ -10,8 +10,10 @@ export class RegisterUser {
 
   async execute(name: string, email: string, password: string) {
     const existing = await this.userRepo.findByEmail(email);
-    if (existing) throw new Error("User already exists");
 
+  if(existing.otpExpires > new Date()) {
+    throw new Error("Please wait for the previous OTP to expire before requesting a new one.");
+    }
     const hashed = await bcrypt.hash(password, 10);
     let otp = otpGenerator.generate(6, {
         upperCaseAlphabets: false,
@@ -22,6 +24,6 @@ export class RegisterUser {
     const user = new User(uuid(), name, email, hashed, otp, otpExpires);
     await this.userRepo.create(user);
     await sendOTPEmail({ email, otp });
-    return { message: "User registered successfully" };
+    return { message: "Otp sent successfully to your email"};
   }
 }

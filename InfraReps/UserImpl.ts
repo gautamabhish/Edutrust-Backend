@@ -46,6 +46,8 @@ export class UserRepositoryImpl implements IUserRepository {
         id: user.id,
         name: user.name,
         email: user.email,
+        otp:user.otp,
+        otpExpires: user.otpExpires,
         password: user.getPassword(),
         role: this.toPrismaRole(user.role),
         createdAt: user.createdAt
@@ -61,6 +63,10 @@ export class UserRepositoryImpl implements IUserRepository {
       userData.name,
       userData.email,
       userData.password,
+      userData.otp||"",
+      userData.otpExpires|| new Date(0), // Default to 10 minutes from now
+      userData.isVerified,
+      userData.createdAt,
       this.fromPrismaRole(userData.role)
     );
   }

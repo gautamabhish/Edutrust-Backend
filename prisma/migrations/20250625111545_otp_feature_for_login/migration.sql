@@ -37,9 +37,13 @@ CREATE TABLE `User` (
     `name` VARCHAR(191) NOT NULL,
     `email` VARCHAR(191) NOT NULL,
     `password` VARCHAR(191) NOT NULL,
+    `isVerified` BOOLEAN NOT NULL DEFAULT false,
+    `otp` VARCHAR(191) NULL,
+    `otpExpires` DATETIME(3) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `role` ENUM('Default', 'Admin', 'SuperAdmin') NOT NULL DEFAULT 'Default',
     `profilePic` VARCHAR(191) NOT NULL DEFAULT '/user.jpg',
+    `creatorVerified` BOOLEAN NOT NULL DEFAULT false,
 
     UNIQUE INDEX `User_email_key`(`email`),
     PRIMARY KEY (`id`)

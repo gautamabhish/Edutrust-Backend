@@ -38,7 +38,7 @@ export interface VerifyPaymentInput {
 export interface IUserRepository {
   create(user: User): Promise<void>;
   update(user: User): Promise<void>;
-  findByEmail(email: string): Promise<User | null>;
+  findByEmail(email: string): Promise<any>;
   findById(id: string): Promise<User | null>;
   getUserStats(userId: string): Promise<{
     totalPoints: number;
