@@ -14,6 +14,7 @@ import {v2 as cloudinary} from "cloudinary";
 import { getCreations } from "../../UseCases/User/GetCreation";
 import { GetReferral } from "../../UseCases/User/getReferralUseCase";
 import { updateProfilePic } from "../../UseCases/User/updateProfilePic";
+import { VerifyOTP } from "../../UseCases/User/VerifyOTP";
 const router = Router();
 const prisma = new PrismaClient();
 const userRepo = new UserRepositoryImpl(prisma);
@@ -26,6 +27,7 @@ cloudinary.config({
     });
 const registerUser = new RegisterUser(userRepo);
 const loginUser = new LoginUser(userRepo);
+
 const getTrending = new GetTrending(userRepo)
 const getDashBoard = new GetUserDashboard(userRepo);
 const getReferralId = new GetReferralIdUseCase(userRepo);
@@ -33,9 +35,11 @@ const getCertificateByIdCase = new getCertificateByIdUseCase(userRepo);
 const getReferralusecase = new GetReferral(userRepo);
 const updateProfilePicUsecase = new updateProfilePic(userRepo);
 const Creations = new getCreations(userRepo);
-const controller = new UserController(registerUser, loginUser, getDashBoard , getTrending , getReferralId,getCertificateByIdCase,getReferralusecase,updateProfilePicUsecase,Creations);
+const verifyOTP = new VerifyOTP(userRepo);
+const controller = new UserController(registerUser, loginUser, getDashBoard , getTrending , getReferralId,getCertificateByIdCase,getReferralusecase,updateProfilePicUsecase,Creations,verifyOTP);
 router.post("/register", async (req, res) => {await controller.register(req, res)});
 router.post("/login", async(req, res) => {await controller.login(req, res)});
+router.post("/verify-otp", async(req, res) => {await controller.verifyOTP(req, res)});
 router.get("/certificate/:certificateId", async (req, res) => { await controller.getCertificateById(req, res) });
 router.get("/dashboard/",(req , res , next)=>{authMiddleware(req,res,next)},async (req, res) => { await controller.getDashBoard(req, res)});
 router.get("/explore",async (req, res) => {await controller.getTrending(req, res)});

@@ -19,6 +19,18 @@ const razorpay = new Razorpay({
 const REFERRAL_COMMISSION_RATE = 0.2;
 export class UserRepositoryImpl implements IUserRepository {
   constructor(private prisma: PrismaClient) {}
+  async update(user: User): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isVerified: user.isVerified,
+        otp: user.otp,
+        otpExpires: user.otpExpires,
+
+        createdAt: user.createdAt,
+      },
+    });
+  }
 
   private toPrismaRole(role: Role): Prisma_Role {
     return Prisma_Role[role];
@@ -49,7 +61,6 @@ export class UserRepositoryImpl implements IUserRepository {
       userData.name,
       userData.email,
       userData.password,
-      userData.createdAt,
       this.fromPrismaRole(userData.role)
     );
   }
@@ -62,7 +73,6 @@ export class UserRepositoryImpl implements IUserRepository {
       userData.name,
       userData.email,
       userData.password,
-      userData.createdAt,
       this.fromPrismaRole(userData.role)
     );
   }
