@@ -21,9 +21,9 @@ export class RegisterUser {
         specialChars: false,
       });
       const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-    const user = new User(uuid(), name, email, hashed, otp, otpExpires);
-    await this.userRepo.create(user);
-    await sendOTPEmail({ email, otp });
+      await sendOTPEmail({ email, otp });
+      const user = new User(uuid(), name, email, hashed, otp, otpExpires);
+      await this.userRepo.create(user);
     return { message: "Otp sent successfully to your email"};
   }
 }
