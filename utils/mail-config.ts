@@ -12,7 +12,7 @@ async function sendOTPEmail({ email, otp }: SendOTPEmailParams): Promise<void> {
         secure: true,              // true for port 465, false for 587
         auth: {
             user: 'mail@skillpass.org',      // your email
-            pass: 'UGBbrw8XeggR', // your email password or app password
+            pass: process.env.MAIL_PASS, // your email password or app password
         },
     });
     console.log("Sending OTP email to:", otp);
