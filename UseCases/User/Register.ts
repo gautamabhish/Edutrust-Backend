@@ -14,7 +14,8 @@ export class RegisterUser {
   if(existing?.otpExpires > new Date()) {
     throw new Error("Please wait for the previous OTP to expire before requesting a new one.");
     }
-  if(existing && existing.otpExpires < new Date()) {
+  if(existing && existing.otpExpires < new Date()&&existing.isVerified===false) {
+    // If the user exists but the OTP has expired and the user is not verified,
     await this.userRepo.delete(existing.id);
   }
     const hashed = await bcrypt.hash(password, 10);
