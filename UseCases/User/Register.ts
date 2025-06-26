@@ -11,7 +11,7 @@ export class RegisterUser {
   async execute(name: string, email: string, password: string) {
     const existing = await this.userRepo.findByEmail(email);
 
-  if(existing.otpExpires > new Date()) {
+  if(existing?.otpExpires > new Date()) {
     throw new Error("Please wait for the previous OTP to expire before requesting a new one.");
     }
     const hashed = await bcrypt.hash(password, 10);
