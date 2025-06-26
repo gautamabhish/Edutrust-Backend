@@ -70,7 +70,7 @@ export interface IUserRepository {
     input: VerifyPaymentInput
   ): Promise<{ success: boolean; message: string }>;
 
-
+  delete(userId: string): Promise<void>;
   getCertificateById(
     certificateId: string):Promise<any> ; 
 

@@ -54,7 +54,18 @@ export class UserRepositoryImpl implements IUserRepository {
       }
     });
   }
+  async delete(userId: string): Promise<void> {
+     await this.prisma.$transaction(async (tx) => {
 
+      // Delete the user itself
+      await tx.user.delete({
+        where: { id: userId ,isVerified: false},
+
+      });
+
+    });
+
+  }
   async findByEmail(email: string): Promise<User | null> {
     const userData = await this.prisma.user.findUnique({ where: { email } });
     if (!userData) return null;
