@@ -524,9 +524,35 @@ try {
 }
  // 6) Return everything
     return  await this.getSubmissionStats(attemptRecord.id, data.userId,tx);
-  });
+  },{maxWait: 10000, timeout: 30000});
 }
+async editRating(quizId: string, userId: string, rating: number): Promise<any> {
+  return await prisma.$transaction(async (tx) => {
+    // 1) Check if user has already rated this quiz
+    const existingRating = await tx.quizRating.findFirst({
+      where: { quizId, userId },
+    });
 
+    if (existingRating) {
+      // Update existing rating
+      return await tx.quizRating.update({
+        where: { id: existingRating.id },
+        data: { rating },
+      });
+    } else {
+      // Create new rating
+      return await tx.quizRating.create({
+        data: {
+          id: uuid(),
+          quizId,
+          userId,
+          rating,
+        },
+      });
+    }
+  }
+  ,{maxWait: 10000, timeout: 30000});
+}
 async getSubmissionStats(
   attemptId: string,
   userId: string,

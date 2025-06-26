@@ -39,6 +39,7 @@ const verifyOTP = new VerifyOTP(userRepo);
 const controller = new UserController(registerUser, loginUser, getDashBoard , getTrending , getReferralId,getCertificateByIdCase,getReferralusecase,updateProfilePicUsecase,Creations,verifyOTP);
 router.post("/register", async (req, res) => {await controller.register(req, res)});
 router.post("/login", async(req, res) => {await controller.login(req, res)});
+// router.get("/session/start", async (req, res) => { await  });
 router.post("/verify-otp", async(req, res) => {await controller.verifyOTP(req, res)});
 router.get("/certificate/:certificateId", async (req, res) => { await controller.getCertificateById(req, res) });
 router.get("/dashboard/",(req , res , next)=>{authMiddleware(req,res,next)},async (req, res) => { await controller.getDashBoard(req, res)});

@@ -89,4 +89,17 @@ static async getQuizByTitle(req: Request, res: Response) {
     res.status(500).json({ message: err.message || "Failed to fetch quizzes by title" });
   }
 }
+
+static async editRating(req: any, res: Response) {
+  const { quizId } = req.params;
+  const userId = req.user?.id; // Assuming user ID is available in req.user
+  const { rating } = req.body;
+
+  try {
+    const updatedQuiz = await quizRepo.editRating(quizId, userId, rating);
+    res.status(200).json(updatedQuiz);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || "Failed to edit rating" });
+  }
+}
 }

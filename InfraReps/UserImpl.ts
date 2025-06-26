@@ -196,6 +196,13 @@ async getExplore(): Promise<any> {
         description: true,
         thumbnailURL: true,
         price: true,
+        quizTags: {
+          select: {
+            tag: {  
+              select: { name: true },
+            },
+          },
+        },
         duration: true,
         verified: true,
         creatorName: true,
@@ -228,6 +235,7 @@ async getExplore(): Promise<any> {
     thumbnailURL: quiz.thumbnailURL ?? "",
     price: quiz.price,
     duration: quiz.duration,
+    quizTags: quiz.quizTags.map((qt) => qt.tag.name),
     verified: quiz.verified ?? false,
     creatorName: creatorMap.get(quiz.creatorId)?.name ?? quiz.creatorName,
     creatorProfilePic: creatorMap.get(quiz.creatorId)?.profilePic ?? null,
@@ -503,12 +511,12 @@ async getUserQuizzes(userId: string): Promise<CourseDTO[]> {
     select: {
       id: true,
       title: true,
+      creatorName: true,
       description: true,
       thumbnailURL: true,
       price: true,
       duration: true,
       verified: true,
-      creatorName: true,
     },
   });
 

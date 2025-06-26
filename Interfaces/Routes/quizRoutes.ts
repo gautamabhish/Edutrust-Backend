@@ -9,5 +9,6 @@ router.get("/fetch/paid/:id",(req , res , next)=>{authMiddleware(req,res,next)},
 router.post("/submit",(req , res , next)=>{authMiddleware(req,res,next)}, QuizController.submitAttempt);
 router.post("/fetch/:attemptId",(req , res , next)=>{authMiddleware(req,res,next)}, QuizController.getSubmissionStats);
 router.get("/search/:title", QuizController.getQuizByTitle);
+router.put("/edit-rating/:quizId", (req, res, next) => { authMiddleware(req, res, next) }, QuizController.editRating);
 
 export default router;

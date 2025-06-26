@@ -21,6 +21,7 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.send('Access Blocked ...');
 });
+
 app.use('/api/users/auth',userRoutes);
 app.use('/api/quiz',quizRoutes );
 app.use('/api/payments',paymentRoutes);
