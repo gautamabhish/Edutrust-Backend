@@ -22,4 +22,5 @@ editRating(quizId: string, userId: string, rating: number): Promise<any>; // ret
 findByIdPaid(quizId: string , userId:string): Promise<any>; // returns Quiz data or null if not found
 getSubmissionStats(attemptId: string ,userId : string,tx?:Prisma.TransactionClient): Promise<any>;
 getQuizByTitle(quizTitle:string): Promise<CourseDTO[]>; // returns Quiz data or null if not found
+addComment(quizId: string, userId: string, comment: string): Promise<any>; // returns Quiz data or null if not found
 }

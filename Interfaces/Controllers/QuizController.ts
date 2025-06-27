@@ -102,4 +102,16 @@ static async editRating(req: any, res: Response) {
     res.status(500).json({ message: err.message || "Failed to edit rating" });
   }
 }
+static async addComment(req: any, res: Response) {
+  const { quizId } = req.params;
+  const userId = req.user?.id; // Assuming user ID is available in req.user
+  const { comment } = req.body;
+
+  try {
+    const updatedQuiz = await quizRepo.addComment(quizId, userId, comment);
+    res.status(200).json(updatedQuiz);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || "Failed to add comment" });
+  }
+}
 }

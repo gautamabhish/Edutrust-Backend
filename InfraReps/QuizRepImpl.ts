@@ -110,38 +110,32 @@ export class PrismaQuizRepo implements IQuizRepository {
   }
 
 async findById(id: string): Promise<any> {
-  // Main quiz query - lightweight
   const quiz = await prisma.quiz.findUnique({
     where: { id },
     include: {
       creator: { select: { id: true, name: true } },
       course: { select: { id: true, name: true, url: true } },
-      quizTags: {
-      include: {
-        tag: { select: { name: true } },
-      },
-    },
+      quizTags: { include: { tag: { select: { name: true } } } },
     },
   });
 
   if (!quiz) return null;
 
-  // Parallel lightweight aggregation queries
   const [
     questionStats,
     attemptStats,
     ratingStats,
-    certificateCount
+    certificateCount,
+    completedAttempts,
+    questionTypes,
+    questionsWithAttachments
   ] = await Promise.all([
-    // Question analytics - aggregated
     prisma.question.aggregate({
       where: { quizId: id },
       _count: { id: true },
       _sum: { points: true, negPoints: true },
       _avg: { points: true },
     }),
-    
-    // Attempt analytics - aggregated
     prisma.quizAttempt.aggregate({
       where: { quizId: id },
       _count: { id: true },
@@ -149,73 +143,72 @@ async findById(id: string): Promise<any> {
       _max: { score: true },
       _min: { score: true },
     }),
-    
-    // Rating analytics - use existing avgRating
     prisma.quizRating.aggregate({
       where: { quizId: id },
       _count: { id: true },
+      _avg: { rating: true },
     }),
-    
-    // Certificate count
     prisma.certificate.count({
       where: { quizId: id },
-    })
-  ]);
-
-  // Additional lightweight queries for specific metrics
-  const [
-    completedAttempts,
-    questionTypes,
-    questionsWithAttachments
-  ] = await Promise.all([
-    prisma.quizAttempt.count({
-      where: { 
-        quizId: id, 
-        finishedAt: { not: null },
-        score: { not: null }
-      }
     }),
-    
+    prisma.quizAttempt.count({
+      where: { quizId: id, finishedAt: { not: null }, score: { not: null } }
+    }),
     prisma.question.groupBy({
       by: ['type'],
       where: { quizId: id },
       _count: { type: true },
     }),
-    
     prisma.question.count({
-      where: { 
-        quizId: id, 
-        attachFileURL: { not: null }
-      }
+      where: { quizId: id, attachFileURL: { not: null } }
     })
   ]);
 
-  // Calculate analytics from aggregated data
   const totalQuestions = questionStats._count.id || 0;
   const totalPoints = questionStats._sum.points || 0;
+  const totalNegPoints = questionStats._sum.negPoints || 0;
+  const avgPoints = questionStats._avg.points || 0;
+
   const totalAttempts = attemptStats._count.id || 0;
   const avgScore = attemptStats._avg.score || 0;
+  const maxScore = attemptStats._max.score || 0;
+  const minScore = attemptStats._min.score || 0;
+
   const avgScorePercentage = totalPoints > 0 ? (avgScore / totalPoints) * 100 : 0;
   const completionRate = totalAttempts > 0 ? (completedAttempts / totalAttempts) * 100 : 0;
+  const passRate = completedAttempts > 0 && avgScorePercentage >= 60 ? avgScorePercentage : 0;
 
-  // Build question types object
+  const avgRating = ratingStats._avg.rating || 0;
+  const totalRatings = ratingStats._count.id || 0;
+
+  const difficultyActual = avgScorePercentage > 0
+    ? avgScorePercentage < 50 ? 'Hard'
+    : avgScorePercentage < 70 ? 'Medium'
+    : 'Easy'
+    : quiz.difficulty;
+
+  const estimatedTime = Math.max(quiz.duration, totalQuestions * 2);
+  const certificateEligibilityRate = totalAttempts > 0
+    ? Math.round((certificateCount / totalAttempts) * 100 * 100) / 100
+    : 0;
+
   const questionTypeDistribution = questionTypes.reduce((acc, qt) => {
     acc[qt.type] = qt._count.type;
     return acc;
   }, {} as Record<string, number>);
-
-  // Determine actual difficulty based on performance
-  const difficultyActual = avgScorePercentage > 0 
-    ? avgScorePercentage < 50 ? 'Hard' 
-      : avgScorePercentage < 70 ? 'Medium' 
-      : 'Easy'
-    : quiz.difficulty;
-
-  // Pass rate (assuming 60% is passing)
-  const passRate = completedAttempts > 0 && totalPoints > 0
-    ? avgScorePercentage >= 60 ? avgScorePercentage : 0
-    : 0;
-
+  const top5Comments = await prisma.review.findMany({
+    where: { quizId: id },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    select: {
+      id: true,
+      userId: true,
+      text: true,
+      createdAt: true,
+      updatedAt: true,
+      user: { select: { name: true } }
+    }
+  });
   return {
     id: quiz.id,
     title: quiz.title,
@@ -231,60 +224,66 @@ async findById(id: string): Promise<any> {
     randomize: quiz.randomize,
     thumbnailURL: quiz.thumbnailURL,
     createdAt: quiz.createdAt,
-    avgRating: quiz.avgRating,
+    avgRating,
     visibleToPublic: quiz.visibleToPublic,
-    
-    // Efficient Analytics
+
     analytics: {
       questions: {
         totalQuestions,
         questionTypes: questionTypeDistribution,
         totalPoints,
-        totalNegPoints: questionStats._sum.negPoints || 0,
-        averagePointsPerQuestion: questionStats._avg.points || 0,
+        totalNegPoints,
+        averagePointsPerQuestion: avgPoints,
         questionsWithAttachments,
       },
       attempts: {
         totalAttempts,
         completedAttempts,
         inProgressAttempts: totalAttempts - completedAttempts,
-        averageScore: Math.round(avgScore * 100) / 100,
-        averageScorePercentage: Math.round(avgScorePercentage * 100) / 100,
-        highestScore: attemptStats._max.score || 0,
-        lowestScore: attemptStats._min.score || 0,
-        completionRate: Math.round(completionRate * 100) / 100,
+        averageScore: Number(avgScore.toFixed(2)),
+        averageScorePercentage: Number(avgScorePercentage.toFixed(2)),
+        highestScore: maxScore,
+        lowestScore: minScore,
+        completionRate: Number(completionRate.toFixed(2)),
       },
       ratings: {
-        totalRatings: ratingStats._count.id || 0,
-        averageRating: quiz.avgRating,
+        totalRatings,
+        averageRating: avgRating,
       },
       certificates: {
         totalCertificatesIssued: certificateCount,
-        certificateEligibilityRate: totalAttempts > 0 
-          ? Math.round((certificateCount / totalAttempts) * 100 * 100) / 100 
-          : 0,
+        certificateEligibilityRate,
       },
       engagement: {
         popularityScore: totalAttempts,
         difficultyActual,
-        estimatedTimeToComplete: Math.max(quiz.duration, totalQuestions * 2),
-        passRate: Math.round(passRate * 100) / 100,
+        estimatedTimeToComplete: estimatedTime,
+        passRate: Number(passRate.toFixed(2)),
+      },
+      comments: {
+        top5Comments: top5Comments.map(comment => ({
+          id: comment.id,
+          userId: comment.userId,
+          text: comment.text,
+          createdAt: comment.createdAt,
+          updatedAt: comment.updatedAt,
+          userName: comment.user.name,
+        })),
       },
     },
-    
-    // Quick Summary
+
     summary: {
       totalQuestions,
       totalPoints,
       totalAttempts,
       completedAttempts,
-      averageScore: Math.round(avgScorePercentage * 100) / 100,
-      completionRate: Math.round(completionRate * 100) / 100,
-      averageRating: quiz.avgRating,
-      totalRatings: ratingStats._count.id || 0,
+      averageScore: Number(avgScorePercentage.toFixed(2)),
+      completionRate: Number(completionRate.toFixed(2)),
+      averageRating:avgRating,
+      totalRatings,
       certificatesIssued: certificateCount,
       difficulty: difficultyActual,
-      estimatedDuration: `${Math.max(quiz.duration, totalQuestions * 2)} minutes`,
+      estimatedDuration: `${estimatedTime} minutes`,
     }
   };
 }
@@ -535,7 +534,7 @@ async editRating(quizId: string, userId: string, rating: number): Promise<any> {
 
     if (existingRating) {
       // Update existing rating
-      return await tx.quizRating.update({
+      return  await tx.quizRating.update({
         where: { id: existingRating.id },
         data: { rating },
       });
@@ -550,6 +549,9 @@ async editRating(quizId: string, userId: string, rating: number): Promise<any> {
         },
       });
     }
+
+   
+
   }
   ,{maxWait: 10000, timeout: 30000});
 }
@@ -728,4 +730,33 @@ async getQuizByTitle(quizTitle: string): Promise<CourseDTO[]> {
   }));
 }
 
+async addComment(quizId: string, userId: string, comment: string): Promise<any> {
+  return await prisma.$transaction(async (tx) => {
+    // Check if the quiz exists
+    const quiz = await tx.quiz.findUnique({
+      where: { id: quizId },
+    });
+
+    if (!quiz) {
+      throw new Error("Quiz not found");
+    }
+    const user = await tx.user.findUnique({
+      where: { id: userId }, 
+      select: { name: true }, 
+    });
+    // Create the comment
+    return await tx.review.create({
+      data: {
+        id: uuid(),
+        quizId,
+        userId,
+        text: comment,
+        createdAt: new Date(),
+        updatedAt : new Date(),
+      },
+
+    });
+
+  }, { maxWait: 10000, timeout: 30000 });
+}
 }

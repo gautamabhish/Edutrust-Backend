@@ -61,7 +61,9 @@ model User {
   referredAs     Referral[]      @relation("ReferredUser")
   referralsMade  Referral[]      @relation("Referrer")
   referralTokens ReferralToken[] @relation("UserReferralTokens")
+
   testSeries UserTestSeries[]
+   reviews   Review[]
 }
 
 
@@ -94,6 +96,7 @@ model Quiz {
   referrals       Referral[]
   referralTokens  ReferralToken[]   @relation("QuizReferralTokens")
   quizTags QuizTag[]
+   reviews   Review[]
 
   @@index([courseId], map: "Quiz_courseId_fkey")
   @@index([creatorId], map: "Quiz_creatorId_fkey")
@@ -221,6 +224,20 @@ model QuizTag {
   tag  Tag  @relation(fields: [tagId], references: [id])
 
   @@id([quizId, tagId]) // ✅ Composite primary key
+}
+model Review {
+  id        String   @id @default(uuid())
+  quizId    String
+  userId    String
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Optional: include a rating (if comments include a score)
+
+  // Relations
+  quiz      Quiz     @relation(fields: [quizId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 
