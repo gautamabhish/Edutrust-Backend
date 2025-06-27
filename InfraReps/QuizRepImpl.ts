@@ -346,14 +346,20 @@ async findByIdPaid(quizId: string, userId: string): Promise<any> {
     select: {
       title: true,
       duration: true, // in minutes, assuming you have this
+      backtrack: true,
+      randomize: true,
+
     },
   });
+  // console.log(quiz)
 
   return {
     quizId,
     title: quiz?.title || '',
     timeLimit: quiz?.duration || 60,
     startedAt: new Date(), // use this as reliable timer start point
+    bactrack: quiz?.backtrack ,
+    randomize: quiz?.randomize ,
     questions: mappedQuestions,
   };
 }
