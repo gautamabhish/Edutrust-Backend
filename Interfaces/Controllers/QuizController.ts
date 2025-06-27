@@ -114,4 +114,13 @@ static async addComment(req: any, res: Response) {
     res.status(500).json({ message: err.message || "Failed to add comment" });
   }
 }
+static async findByTag(req: Request, res: Response) {
+  const { tag } = req.params;
+  try {
+    const quizzes = await quizRepo.findByTag(tag);
+    res.status(200).json(quizzes);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || "Failed to fetch quizzes by tag" });
+  }
+}
 }

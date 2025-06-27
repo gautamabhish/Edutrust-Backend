@@ -11,5 +11,6 @@ router.post("/fetch/:attemptId",(req , res , next)=>{authMiddleware(req,res,next
 router.post("/add-comment/:quizId", (req, res, next) => { authMiddleware(req, res, next) }, QuizController.addComment);
 router.get("/search/:title", QuizController.getQuizByTitle);
 router.put("/edit-rating/:quizId", (req, res, next) => { authMiddleware(req, res, next) }, QuizController.editRating);
+router.get("/find-by-tag/:tag", QuizController.findByTag);
 
 export default router;

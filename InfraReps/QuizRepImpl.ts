@@ -363,7 +363,37 @@ async findByIdPaid(quizId: string, userId: string): Promise<any> {
     questions: mappedQuestions,
   };
 }
-
+async findByTag(tag: string): Promise<any[]> {
+  const quizzes = await prisma.quiz.findMany({
+    where: {
+      quizTags: {
+        some: { 
+          tag: { name: tag },
+        },
+      },
+    },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      thumbnailURL: true,
+      price: true,
+      duration: true,
+      verified: true,
+      creatorName: true,
+    },
+  }); 
+  return quizzes.map(quiz => ({
+    id: quiz.id,
+    title: quiz.title,
+    description: quiz.description,
+    thumbnailURL: quiz.thumbnailURL,
+    price: quiz.price,
+    duration: quiz.duration,
+    verified: quiz.verified,
+    creatorName: quiz.creatorName,
+  }));
+}
 async submitAttempt(data: {
   userId: string;
   quizId: string;
