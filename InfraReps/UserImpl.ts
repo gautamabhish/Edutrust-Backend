@@ -487,7 +487,7 @@ async getReferrals(userId: string): Promise<any> {
       earnedAmount: referral.earnedAmount,
       createdAt: referral.createdAt,    
       settledAt: referral.settledDate || null, // Handle settledDate if it exists
-
+      redeemed : referral.redeemed,
     }
   ));
     }
