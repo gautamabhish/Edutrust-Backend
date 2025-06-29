@@ -242,19 +242,40 @@ async getExplore(): Promise<any> {
   }));
 }
 
-   async getOrCreateReferralToken(quizId: string, referrerId: string): Promise<string> {
+async getOrCreateReferralToken(quizId: string, referrerId: string): Promise<string> {
+  try {
+    // Ensure quiz exists
+    const quiz = await this.prisma.quiz.findUnique({
+      where: { id: quizId }
+    });
+    if (!quiz) throw new Error("Quiz not found");
+
+    // Ensure user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: referrerId }
+    });
+    if (!user) throw new Error("Referrer user not found");
+
+    // Check for existing token
     const existing = await this.prisma.referralToken.findFirst({
       where: { quizId, referrerId }
     });
+    if (existing) {
+      return `https://www.skillpass.org/explore/${quizId}?ref=${existing.token}`;
+    }
 
-    if (existing) return `www.skillpass.org/explore/${quizId}?ref=${existing.token}` ;
-
+    // Create new token
     const newToken = await this.prisma.referralToken.create({
       data: { quizId, referrerId }
     });
 
-    return `www.skillpass.org/explore/${quizId}?ref=${newToken.token}`;
+    return `https://www.skillpass.org/explore/${quizId}?ref=${newToken.token}`;
+  } catch (err:any) {
+    console.error("Referral token generation failed", err);
+    throw new Error(err.message || "Could not generate referral link");
   }
+}
+
 
    async createOrder({
     userId,
