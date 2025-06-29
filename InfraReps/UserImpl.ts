@@ -464,6 +464,7 @@ async getReferrals(userId: string): Promise<any> {
       id : true,
       earnedAmount: true,
       createdAt: true,
+      redeemed: true,
       quiz: {
         select: {
           title: true
