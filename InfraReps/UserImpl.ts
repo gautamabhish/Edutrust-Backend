@@ -586,7 +586,7 @@ async getCreations(userId: string): Promise<any> {
     // Step 4: Combine data and calculate earnings
     return quizzes.map((quiz) => {
       const uniquePurchasers = attemptMap[quiz.id]?.size || 0;
-      const earnings = Math.round(quiz.price * 0.65 * uniquePurchasers); // Assuming 65% of the price goes to the creator
+      const earnings = (quiz.price * 0.65 * uniquePurchasers)// Assuming 65% of the price goes to the creator
 
       return {
         id: quiz.id,
