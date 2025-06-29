@@ -15,6 +15,7 @@ import { getCreations } from "../../UseCases/User/GetCreation";
 import { GetReferral } from "../../UseCases/User/getReferralUseCase";
 import { updateProfilePic } from "../../UseCases/User/updateProfilePic";
 import { VerifyOTP } from "../../UseCases/User/VerifyOTP";
+import { SetRedeemStatus } from "../../UseCases/User/SetRedeemStatus";
 const router = Router();
 const prisma = new PrismaClient();
 const userRepo = new UserRepositoryImpl(prisma);
@@ -27,7 +28,7 @@ cloudinary.config({
     });
 const registerUser = new RegisterUser(userRepo);
 const loginUser = new LoginUser(userRepo);
-
+const setRedeemStatus = new SetRedeemStatus(userRepo);
 const getTrending = new GetTrending(userRepo)
 const getDashBoard = new GetUserDashboard(userRepo);
 const getReferralId = new GetReferralIdUseCase(userRepo);
@@ -36,7 +37,7 @@ const getReferralusecase = new GetReferral(userRepo);
 const updateProfilePicUsecase = new updateProfilePic(userRepo);
 const Creations = new getCreations(userRepo);
 const verifyOTP = new VerifyOTP(userRepo);
-const controller = new UserController(registerUser, loginUser, getDashBoard , getTrending , getReferralId,getCertificateByIdCase,getReferralusecase,updateProfilePicUsecase,Creations,verifyOTP);
+const controller = new UserController(registerUser, loginUser, getDashBoard , getTrending , getReferralId,getCertificateByIdCase,getReferralusecase,updateProfilePicUsecase,Creations,verifyOTP ,setRedeemStatus);
 router.post("/register", async (req, res) => {await controller.register(req, res)});
 router.post("/login", async(req, res) => {await controller.login(req, res)});
 // router.get("/session/start", async (req, res) => { await  });
@@ -45,9 +46,10 @@ router.get("/certificate/:certificateId", async (req, res) => { await controller
 router.get("/dashboard/",(req , res , next)=>{authMiddleware(req,res,next)},async (req, res) => { await controller.getDashBoard(req, res)});
 router.get("/explore",async (req, res) => {await controller.getTrending(req, res)});
 router.get("/referral-link",(req , res , next)=>{authMiddleware(req,res,next)}, async (req, res) => { await controller.getReferralLink(req, res)});
-router.get("getreferrals",(req , res , next)=>{authMiddleware(req,res,next)}, async (req, res) => { await controller.getReferrals(req, res)});
+router.get("/getreferrals",(req , res , next)=>{authMiddleware(req,res,next)}, async (req, res) => { await controller.getReferrals(req, res)});
 router.get("/get-creations", (req, res, next) => { authMiddleware(req, res, next) }, async (req, res) => { await controller.getCreations(req, res) });
 router.put("/update-profile-pic", (req, res, next) => { authMiddleware(req, res, next) }, async (req, res) => { await controller.updateProfilePic(req, res) });
+router.put("/redeemStatusCheck", (req, res, next) => { authMiddleware(req, res, next) }, async (req, res) => {await controller.setRedeemStatus(req, res) });
 router.post("/signature", async (req, res, next) => {authMiddleware(req, res, next)}, async (req, res) => { 
     const { public_id, folder } = req.body;
 

@@ -3,7 +3,7 @@ import { IUserRepository } from "../../IReps/IUserRepo";
 import { v4 as uuid } from "uuid";
 import bcrypt from "bcrypt";
 const otpGenerator = require("otp-generator");
-import { sendOTPEmail } from "../../utils/mail-config";
+import { sendOTPEmail } from "../../utils/mail-config-otp";
 
 export class RegisterUser {
   constructor(private userRepo: IUserRepository) {}

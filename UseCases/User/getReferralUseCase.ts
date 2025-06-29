@@ -6,5 +6,8 @@ export class GetReferral {
 
   async execute(userId: string): Promise<any> {
    const referrals = await this.userRepo.getReferrals(userId);
+   return {
+    referrals
   }
+}
 }

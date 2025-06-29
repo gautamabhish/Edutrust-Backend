@@ -12,11 +12,11 @@ import crypto from "crypto";
 // Instantiate Razorpay client
 const razorpay = new Razorpay({
   key_id: process.env.KEYID!,
-  key_secret: process.env.KEYSEC!,
+  key_secret: process.env.RAZOR_KEYSEC!,
 });
 
-// Commission rate = 20%
-const REFERRAL_COMMISSION_RATE = 0.2;
+// Commission rate = 15%
+const REFERRAL_COMMISSION_RATE = 0.15;
 export class UserRepositoryImpl implements IUserRepository {
   constructor(private prisma: PrismaClient) {}
   async update(user: User): Promise<void> {
@@ -247,13 +247,13 @@ async getExplore(): Promise<any> {
       where: { quizId, referrerId }
     });
 
-    if (existing) return existing.token;
+    if (existing) return `www.skillpass.org/explore/${quizId}?ref=${existing.token}` ;
 
     const newToken = await this.prisma.referralToken.create({
       data: { quizId, referrerId }
     });
 
-    return newToken.token;
+    return `www.skillpass.org/explore/${quizId}?ref=${newToken.token}`;
   }
 
    async createOrder({
@@ -358,7 +358,7 @@ async getExplore(): Promise<any> {
     // 1) Verify Razorpay signature
     const bodyToSign = razorpayOrderId + "|" + razorpayPaymentId;
     const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
+      .createHmac("sha256", process.env.RAZOR_KEYSEC!)
       .update(bodyToSign)
       .digest("hex");
     if (expectedSignature !== razorpaySignature) {
@@ -436,10 +436,11 @@ async getExplore(): Promise<any> {
   }
 
 
-async getReferrals(userId: string): Promise<any[]> {
+async getReferrals(userId: string): Promise<any> {
   const referrals = await this.prisma.referral.findMany({
     where: { referrerId: userId },
     select: {
+      id : true,
       earnedAmount: true,
       createdAt: true,
       quiz: {
@@ -451,12 +452,23 @@ async getReferrals(userId: string): Promise<any[]> {
         select: {
           name: true
         }
-      }
+      },
+      settledDate: true, // Include settledDate if needed
     }
   });
 
-  return referrals;
-}
+  return referrals.map(referral => ( 
+    {
+      id : referral.id,
+      quizTitle: referral.quiz.title,
+      referredUserName: referral.referredUser?.name|| "Unknown User",
+      earnedAmount: referral.earnedAmount,
+      createdAt: referral.createdAt,    
+      settledAt: referral.settledDate || null, // Handle settledDate if it exists
+
+    }
+  ));
+    }
 
 
 async getCertificateById(certificateId: string): Promise<any> {
@@ -574,7 +586,7 @@ async getCreations(userId: string): Promise<any> {
     // Step 4: Combine data and calculate earnings
     return quizzes.map((quiz) => {
       const uniquePurchasers = attemptMap[quiz.id]?.size || 0;
-      const earnings = Math.round(quiz.price * 0.55 * uniquePurchasers);
+      const earnings = Math.round(quiz.price * 0.65 * uniquePurchasers); // Assuming 65% of the price goes to the creator
 
       return {
         id: quiz.id,
@@ -597,5 +609,28 @@ async updateProfilePic(userId: string, imageUrl: string): Promise<void> {
       data: { profilePic: imageUrl },
     });
   }
+
+
+async setRedeemStatus(referralId: string) {
+  return await this.prisma.referral.update({
+    where: { id: referralId },
+    data: {
+      redeemed: true,
+      // settledDate: new Date(),
+    },
+    select: {
+      id: true,
+      earnedAmount: true,
+      referrer: {
+        select: { email: true },
+      },
+    },
+  }).then((r:any)=> ({
+    id: r.id,
+    earnedAmount: r.earnedAmount,
+    referrerEmail: r.referrer.email,
+  })).catch(() => null);
+}
+
 
 }

@@ -73,6 +73,7 @@ export interface IUserRepository {
   delete(userId: string): Promise<void>;
   getCertificateById(
     certificateId: string):Promise<any> ; 
+    setRedeemStatus(referralId: string): Promise<any>;
 
   getUserQuizzes(userId: string): Promise<CourseDTO[]>;
   getReferrals(userId: string): Promise<any>; // returns an array of users referred by the given user

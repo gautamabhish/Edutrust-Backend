@@ -10,6 +10,7 @@ import { GetReferral } from "../../UseCases/User/getReferralUseCase";
 import { updateProfilePic } from "../../UseCases/User/updateProfilePic";
 import { getCreations } from "../../UseCases/User/GetCreation";
 import { VerifyOTP } from "../../UseCases/User/VerifyOTP";
+import { SetRedeemStatus } from "../../UseCases/User/SetRedeemStatus";
 export class UserController {
   constructor(
     private registerUser: RegisterUser,
@@ -21,7 +22,8 @@ export class UserController {
     private getReferralUseCase: GetReferral,
     private updateProfilePicUsecase: updateProfilePic,
     private creationUseCase: getCreations,
-    private VerifyOTP: VerifyOTP
+    private VerifyOTP: VerifyOTP,
+    private setStatusCheck: SetRedeemStatus
 
   ) {}
 
@@ -35,6 +37,21 @@ export class UserController {
     }
   }
 
+  async setRedeemStatus(req: any, res: Response) {
+    const userId = req.user?.id as string;
+    const { referralId } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const result = await this.setStatusCheck.execute(referralId);
+      return res.status(200).json(result);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
   async getTrending(req: Request, res: Response) {
     try {
       const trending = await this.ExploreUsecase.execute();
@@ -87,8 +104,10 @@ export class UserController {
     }
   }
 
-  async getReferralLink(req: Request, res: Response) {
-    const { userId, quizId } = req.body;
+  async getReferralLink(req: any, res: Response) {
+    const userId = req.user?.id as string;
+    const quizId = req.query.quizId as string;
+
 
     const link = await this.ReferralUseCase.execute({
       quizId,
@@ -117,8 +136,9 @@ export class UserController {
     }
 
     try {
-      const referrals = await this.getReferralUseCase.execute(userId);
-      return res.status(200).json(referrals);
+      const {referrals} = await this.getReferralUseCase.execute(userId);
+      // console.log("Referrals fetched for user:", userId, referrals);
+      return res.status(200).json({referrals});
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }

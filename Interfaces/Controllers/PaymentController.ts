@@ -27,7 +27,7 @@ export default class PaymentController {
     }
   }
 
-  static async verifyPayment(req: Request, res: Response) {
+  static async verifyPayment(req: any, res: Response) {
     try {
       const {
         userId,

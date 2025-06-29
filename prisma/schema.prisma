@@ -161,6 +161,7 @@ model Referral {
   earnedAmount   Float    @default(0)
   createdAt      DateTime @default(now())
   redeemed       Boolean  @default(false)
+  settledDate    DateTime?
   quiz           Quiz     @relation(fields: [quizId], references: [id])
   referredUser   User?    @relation("ReferredUser", fields: [referredUserId], references: [id])
   referrer       User     @relation("Referrer", fields: [referrerId], references: [id])
