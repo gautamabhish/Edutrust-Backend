@@ -85,7 +85,7 @@ export class PrismaQuizRepo implements IQuizRepository {
         }
       }
 
-      console.log(data.Questions)
+      // console.log(data.Questions)
       // Add Questions
       for (const question of data.Questions) {
         await tx.question.create({

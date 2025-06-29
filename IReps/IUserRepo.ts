@@ -61,6 +61,9 @@ export interface IUserRepository {
     quizTitle: string;
     referralApplied: boolean;
   }>;
+  setQuizPaymentsRedeemRequestedandGetAmount(
+    userId: string
+  ): Promise<any>; // returns the total amount requested for settlement
 
   /**
    * 2) After the frontend obtains a payment and sends back razorpay IDs + signature,

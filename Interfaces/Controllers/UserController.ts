@@ -10,7 +10,8 @@ import { GetReferral } from "../../UseCases/User/getReferralUseCase";
 import { updateProfilePic } from "../../UseCases/User/updateProfilePic";
 import { getCreations } from "../../UseCases/User/GetCreation";
 import { VerifyOTP } from "../../UseCases/User/VerifyOTP";
-import { SetRedeemStatus } from "../../UseCases/User/SetRedeemStatus";
+import { SetRedeemStatus } from "../../UseCases/User/SetReferralRedeemStatus";
+import { SetQuizSettlementRequest } from "../../UseCases/User/SetQuizSettlement";
 export class UserController {
   constructor(
     private registerUser: RegisterUser,
@@ -23,7 +24,8 @@ export class UserController {
     private updateProfilePicUsecase: updateProfilePic,
     private creationUseCase: getCreations,
     private VerifyOTP: VerifyOTP,
-    private setStatusCheck: SetRedeemStatus
+    private setStatusCheck: SetRedeemStatus,
+    private setquizSettlementAndAmount: SetQuizSettlementRequest
 
   ) {}
 
@@ -50,6 +52,20 @@ export class UserController {
       return res.status(200).json(result);
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
+    }
+  }
+
+
+  async setQuizSettlement(req: any, res: Response) {
+    const userId = req.user?.id as string;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const result = await this.setquizSettlementAndAmount.execute(userId);
+      return res.status(200).json(result);
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message });
     }
   }
   async getTrending(req: Request, res: Response) {

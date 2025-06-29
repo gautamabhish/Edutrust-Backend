@@ -61,7 +61,7 @@ model User {
   referredAs     Referral[]      @relation("ReferredUser")
   referralsMade  Referral[]      @relation("Referrer")
   referralTokens ReferralToken[] @relation("UserReferralTokens")
-
+  quizPayments    QuizPayment[]
   testSeries UserTestSeries[]
    reviews   Review[]
 }
@@ -97,7 +97,7 @@ model Quiz {
   referralTokens  ReferralToken[]   @relation("QuizReferralTokens")
   quizTags QuizTag[]
    reviews   Review[]
-
+quizPayments   QuizPayment[] 
   @@index([courseId], map: "Quiz_courseId_fkey")
   @@index([creatorId], map: "Quiz_creatorId_fkey")
   @@index([testSeriesId], map: "Quiz_testSeriesId_fkey")
@@ -239,6 +239,28 @@ model Review {
   // Relations
   quiz      Quiz     @relation(fields: [quizId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
+}
+
+model QuizPayment {
+  id          String   @id @default(uuid())
+  userId      String
+  quizId      String
+  orderId     String   // Razorpay or gateway order ID
+  paymentId   String   // Razorpay or gateway payment ID
+  amount      Float
+  currency    String
+  paidAt      DateTime @default(now())
+  redeemRequest Boolean   @default(false)
+  settled     Boolean  @default(false)
+  settledAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+  quiz Quiz @relation(fields: [quizId], references: [id])
+
+  @@index([quizId])
+  @@index([userId])
+  @@index([settled])
+  @@unique([paymentId]) // ensure no duplicate payments recorded
 }
 
 

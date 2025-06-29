@@ -419,6 +419,20 @@ async getOrCreateReferralToken(quizId: string, referrerId: string): Promise<stri
         },
       });
 
+      await tx.quizPayment.create({
+  data: {
+    userId,
+    quizId,
+    orderId: razorpayOrderId,
+    paymentId: razorpayPaymentId,
+    amount: amountInRupees,
+    currency: payment.currency,
+    redeemRequest: false, // Default
+    settled: false,  // Default
+  },
+});
+
+
       // 4b) If referralToken was provided and still valid, create a Referral record
       if (referralToken) {
         const tokenRecord = await tx.referralToken.findUnique({
@@ -456,6 +470,47 @@ async getOrCreateReferralToken(quizId: string, referrerId: string): Promise<stri
     };
   }
 
+  async setQuizPaymentsRedeemRequestedandGetAmount(
+    userId: string
+  ): Promise<any> {
+    // 1) Verify user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new Error("User not found. Cannot process settlement request.");
+    }
+
+    // 2) Update all eligible QuizPayments to redeemRequested = true
+    const updatedPayments = await this.prisma.quizPayment.updateMany({
+      where: {
+        quiz: { creatorId: userId }, // Only payments for quizzes created by this user
+        redeemRequest: false, // Only update those not already requested
+        settled: false, // Only those not settled yet
+      },
+      data: { redeemRequest: true },
+    });
+    // console.log("Updated payments count:", updatedPayments);
+    if (updatedPayments.count === 0) {
+      throw new Error("No eligible quiz payments found to request settlement.");
+    }
+
+    // 3) Calculate total amount requested for settlement
+    const totalAmount = await this.prisma.quizPayment.aggregate({
+      where: {
+        quiz: { creatorId: userId }, // Only payments for quizzes created by this user
+        redeemRequest: true, // Only those requested
+        settled: false,
+      },
+      _sum: { amount: true },
+    });
+
+    return {
+      updatedCount: updatedPayments.count,
+      totalAmount: (totalAmount._sum.amount || 0)*0.65, // Handle case where no payments
+      
+    };
+  } 
 
 async getReferrals(userId: string): Promise<any> {
   const referrals = await this.prisma.referral.findMany({
@@ -575,13 +630,16 @@ async getCreations(userId: string): Promise<any> {
       select: {
         id: true,
         title: true,
-       
         price: true,
-    
       },
     });
 
-    if (quizzes.length === 0) return [];
+    if (quizzes.length === 0) {
+      return {
+        quizzes: [],
+        settlements: []
+      };
+    }
 
     // Step 2: Get distinct userIds from QuizAttempt for these quizzes
     const quizIds = quizzes.map((quiz) => quiz.id);
@@ -605,10 +663,27 @@ async getCreations(userId: string): Promise<any> {
       attemptMap[attempt.quizId].add(attempt.userId);
     }
 
-    // Step 4: Combine data and calculate earnings
-    return quizzes.map((quiz) => {
+    // Step 4: Get settlement records for this user
+ const settlements = await tx.quizPayment.findMany({
+  where: {
+    quiz: { creatorId: userId },
+    redeemRequest: true,
+  },
+  select: {
+    id: true,
+    quizId: true,
+    amount: true,
+    settled: true,
+    redeemRequest: true,
+    settledAt: true,
+  },
+});
+
+
+    // Step 5: Combine data and calculate earnings
+    const quizResults = quizzes.map((quiz) => {
       const uniquePurchasers = attemptMap[quiz.id]?.size || 0;
-      const earnings = (quiz.price * 0.65 * uniquePurchasers)// Assuming 65% of the price goes to the creator
+      const earnings = quiz.price * 0.65 * uniquePurchasers; // Assuming 65% share
 
       return {
         id: quiz.id,
@@ -619,10 +694,23 @@ async getCreations(userId: string): Promise<any> {
       };
     });
 
+    // Final return
+    return {
+      quizzes: quizResults,
+      settlements: settlements.map(s => ({
+        id: s.id,
+        quizId: s.quizId,
+        amount: s.amount*0.65,   
+        redeemed: s.redeemRequest,
+        settled: s.settled,
+        settledAt: s.settledAt ? s.settledAt.toISOString() : null, // Format date if needed
+       
 
-
+      })),
+    };
   });
 }
+
 
 
 async updateProfilePic(userId: string, imageUrl: string): Promise<void> {
