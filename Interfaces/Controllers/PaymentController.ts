@@ -23,7 +23,7 @@ export default class PaymentController {
       return res.status(200).json(result);
     } catch (err: any) {
       console.error("CreateOrder error:", err);
-      return res.status(500).json({ error: err.message });
+      return res.status(409).json({ error: err.message });
     }
   }
 

@@ -287,86 +287,93 @@ async createOrder({
   quizTitle: string;
   referralApplied: boolean;
 }> {
-  // 1️⃣ Check if already purchased / attempted
-  const attempt = await this.prisma.quizAttempt.findFirst({
-    where: { userId, quizId },
-  });
-  if (attempt) {
-    throw new Error("This quiz is already purchased or attempted by the user.");
-  }
-
-  // 2️⃣ Fetch quiz details
-  const quiz = await this.prisma.quiz.findUnique({
-    where: { id: quizId },
-    select: { id: true, title: true, price: true, currency: true },
-  });
-  if (!quiz) {
-    throw new Error("Quiz not found.");
-  }
-
-  let finalAmount = quiz.price;
-  let referralApplied = false;
-
-  // 3️⃣ Check referral token validity and apply discount if valid
-  if (referralToken) {
-    const tokenRecord = await this.prisma.referralToken.findUnique({
-      where: { token: referralToken },
+  try {
+    // 1️⃣ Check if already purchased / attempted
+    const attempt = await this.prisma.quizAttempt.findFirst({
+      where: { userId, quizId },
     });
-
-    if (
-      tokenRecord &&
-      tokenRecord.quizId === quizId &&
-      tokenRecord.referrerId !== userId
-    ) {
-      referralApplied = true;
-      // Example: apply 10% discount
-      finalAmount = finalAmount ;
+    if (attempt) {
+      throw new Error("This quiz is already purchased or attempted by the user.");
     }
-  }
 
-  // 4️⃣ Handle free quiz (finalAmount zero)
-  if (finalAmount === 0) {
-    await this.prisma.quizAttempt.create({
-      data: {
-        id: crypto.randomUUID(),
+    // 2️⃣ Fetch quiz details
+    const quiz = await this.prisma.quiz.findUnique({
+      where: { id: quizId },
+      select: { id: true, title: true, price: true, currency: true },
+    });
+    if (!quiz) {
+      throw new Error("Quiz not found.");
+    }
+
+    let finalAmount = quiz.price;
+    let referralApplied = false;
+
+    // 3️⃣ Check referral token validity and apply discount if valid
+    if (referralToken) {
+      const tokenRecord = await this.prisma.referralToken.findUnique({
+        where: { token: referralToken },
+      });
+
+      if (
+        tokenRecord &&
+        tokenRecord.quizId === quizId &&
+        tokenRecord.referrerId !== userId
+      ) {
+        referralApplied = true;
+      }
+    }
+
+    // 4️⃣ Handle free quiz (finalAmount zero)
+    if (finalAmount === 0) {
+      await this.prisma.quizAttempt.create({
+        data: {
+          id: crypto.randomUUID(),
+          userId,
+          quizId,
+          startedAt: new Date(),
+          finishedAt: new Date(),
+        },
+      });
+
+      return {
+        orderId: "IFITISFREE",
+        amount: 0,
+        currency: quiz.currency || "INR",
+        quizTitle: quiz.title,
+        referralApplied,
+      };
+    }
+
+    // 5️⃣ Create Razorpay order
+    const order = await razorpay.orders.create({
+      amount: Math.round(finalAmount * 100), // paise
+      currency: (quiz.currency?.toUpperCase() || "INR"),
+      receipt: `QUIZ-${quizId}`,
+      notes: {
         userId,
         quizId,
-        startedAt: new Date(),
-        finishedAt: new Date(),
+        referralToken: referralToken || "",
+        originalAmount: quiz.price,
+        finalAmount,
       },
     });
 
     return {
-      orderId: "IFITISFREE",
-      amount: 0,
-      currency: quiz.currency || "INR",
+      orderId: order.id,
+      amount: finalAmount,
+      currency: order.currency,
       quizTitle: quiz.title,
       referralApplied,
     };
+  } catch (error) {
+    console.error("Error in createOrder:", error);
+    // Optionally rethrow or return a custom error object
+    throw new Error(
+      error instanceof Error ? error.message : "An unexpected error occurred."
+    );
   }
-
-  // 5️⃣ Create Razorpay order
-  const order = await razorpay.orders.create({
-    amount: Math.round(finalAmount * 100), // paise
-    currency: (quiz.currency?.toUpperCase() || "INR"),
-    receipt: `QUIZ-${quizId}`,
-    notes: {
-      userId,
-      quizId,
-      referralToken: referralToken || "",
-      originalAmount: quiz.price,
-      finalAmount,
-    },
-  });
-
-  return {
-    orderId: order.id,
-    amount: finalAmount,
-    currency: order.currency,
-    quizTitle: quiz.title,
-    referralApplied,
-  };
 }
+
 
   /**
    * 2) After the front-end completes checkout, it sends back:
