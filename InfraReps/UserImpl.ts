@@ -276,55 +276,66 @@ async getOrCreateReferralToken(quizId: string, referrerId: string): Promise<stri
   }
 }
 
+async createOrder({
+  userId,
+  quizId,
+  referralToken = null,
+}: CreateOrderInput): Promise<{
+  orderId: string;
+  amount: number;
+  currency: string;
+  quizTitle: string;
+  referralApplied: boolean;
+}> {
+  // 1️⃣ Check if already purchased / attempted
+  const attempt = await this.prisma.quizAttempt.findFirst({
+    where: { userId, quizId },
+  });
+  if (attempt) {
+    throw new Error("This quiz is already purchased or attempted by the user.");
+  }
 
-   async createOrder({
-    userId,
-    quizId,
-    referralToken = null,
-  }: CreateOrderInput): Promise<{
-    orderId: string;
-    amount: number;
-    currency: string;
-    quizTitle: string;
-    referralApplied: boolean;
-  }> {
-    // 1a) Fetch quiz to get its price and currency
-    const quiz = await this.prisma.quiz.findUnique({
-      where: { id: quizId },
-      select: { id: true, title: true, price: true, currency: true },
+  // 2️⃣ Fetch quiz details
+  const quiz = await this.prisma.quiz.findUnique({
+    where: { id: quizId },
+    select: { id: true, title: true, price: true, currency: true },
+  });
+  if (!quiz) {
+    throw new Error("Quiz not found.");
+  }
+
+  let finalAmount = quiz.price;
+  let referralApplied = false;
+
+  // 3️⃣ Check referral token validity and apply discount if valid
+  if (referralToken) {
+    const tokenRecord = await this.prisma.referralToken.findUnique({
+      where: { token: referralToken },
     });
-    if (!quiz) throw new Error("Quiz not found.");
 
-    let finalAmount = quiz.price;
-    let referralApplied = false;
-
-    // 1b) If referralToken provided, check validity so FE knows whether discount applies
-    if (referralToken) {
-      const tokenRecord = await this.prisma.referralToken.findUnique({
-        where: { token: referralToken },
-      });
-      if (
-        tokenRecord &&
-        tokenRecord.quizId === quizId &&
-        tokenRecord.referrerId !== userId
-      ) {
-        referralApplied = true;
-        
-      }
+    if (
+      tokenRecord &&
+      tokenRecord.quizId === quizId &&
+      tokenRecord.referrerId !== userId
+    ) {
+      referralApplied = true;
+      // Example: apply 10% discount
+      finalAmount = finalAmount ;
     }
-      if (finalAmount === 0) {
-       this.prisma.$transaction(async (tx) => {
-      // 1c) If quiz is free, create a QuizAttempt directly
-      await tx.quizAttempt.create({
-        data: {
-          id: crypto.randomUUID(),    
-          userId,
-          quizId,
-          startedAt: new Date(),
-          finishedAt: new Date(), // Assuming instant unlock
-        },
-      });
+  }
+
+  // 4️⃣ Handle free quiz (finalAmount zero)
+  if (finalAmount === 0) {
+    await this.prisma.quizAttempt.create({
+      data: {
+        id: crypto.randomUUID(),
+        userId,
+        quizId,
+        startedAt: new Date(),
+        finishedAt: new Date(),
+      },
     });
+
     return {
       orderId: "IFITISFREE",
       amount: 0,
@@ -334,30 +345,28 @@ async getOrCreateReferralToken(quizId: string, referrerId: string): Promise<stri
     };
   }
 
+  // 5️⃣ Create Razorpay order
+  const order = await razorpay.orders.create({
+    amount: Math.round(finalAmount * 100), // paise
+    currency: (quiz.currency?.toUpperCase() || "INR"),
+    receipt: `QUIZ-${quizId}`,
+    notes: {
+      userId,
+      quizId,
+      referralToken: referralToken || "",
+      originalAmount: quiz.price,
+      finalAmount,
+    },
+  });
 
-    // 2) Create Razorpay order
-    const orderOptions = {
-      amount: Math.round(finalAmount * 100), // paise
-      currency: (quiz.currency?.toUpperCase() || "INR") as "INR" | string,
-      receipt: `$${quizId}`,
-      notes: {
-        userId,
-        quizId,
-        referralToken: referralToken || "",
-        originalAmount: quiz.price,
-        finalAmount,
-      },
-    };
-    const order = await razorpay.orders.create(orderOptions);
-
-    return {
-      orderId: order.id,
-      amount: finalAmount,
-      currency: order.currency,
-      quizTitle: quiz.title,
-      referralApplied,
-    };
-  }
+  return {
+    orderId: order.id,
+    amount: finalAmount,
+    currency: order.currency,
+    quizTitle: quiz.title,
+    referralApplied,
+  };
+}
 
   /**
    * 2) After the front-end completes checkout, it sends back:
