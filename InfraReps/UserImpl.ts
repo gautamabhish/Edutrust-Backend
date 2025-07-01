@@ -660,24 +660,24 @@ async getCreations(userId: string): Promise<any> {
     // Step 2: Get distinct userIds from QuizAttempt for these quizzes
     const quizIds = quizzes.map((quiz) => quiz.id);
 
-    const attempts = await tx.quizAttempt.findMany({
-      where: {
-        quizId: { in: quizIds },
-      },
-      select: {
-        quizId: true,
-        userId: true,
-      },
-    });
+  const payments = await tx.quizPayment.findMany({
+  where: {
+    quizId: { in: quizIds },
+  },
+  select: {
+    quizId: true,
+    userId: true,
+  },
+});
 
-    // Step 3: Organize attempts by quizId with unique userIds
-    const attemptMap: Record<string, Set<string>> = {};
-    for (const attempt of attempts) {
-      if (!attemptMap[attempt.quizId]) {
-        attemptMap[attempt.quizId] = new Set();
-      }
-      attemptMap[attempt.quizId].add(attempt.userId);
-    }
+
+const paymentMap: Record<string, Set<string>> = {};
+for (const pay of payments) {
+  if (!paymentMap[pay.quizId]) {
+    paymentMap[pay.quizId] = new Set();
+  }
+  paymentMap[pay.quizId].add(pay.userId);
+}
 
     // Step 4: Get settlement records for this user
  const settlements = await tx.quizPayment.findMany({
@@ -698,7 +698,7 @@ async getCreations(userId: string): Promise<any> {
 
     // Step 5: Combine data and calculate earnings
     const quizResults = quizzes.map((quiz) => {
-      const uniquePurchasers = attemptMap[quiz.id]?.size || 0;
+      const uniquePurchasers = paymentMap[quiz.id]?.size || 0;
       const earnings = quiz.price * 0.65 * uniquePurchasers; // Assuming 65% share
 
       return {
