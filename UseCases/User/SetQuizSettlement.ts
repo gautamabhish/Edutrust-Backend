@@ -24,7 +24,7 @@ export class SetQuizSettlementRequest {
       await sendSettlementReceivedEmailForQuiz({
         email: user.email,
         name: user.name || "User", // Fallback to "User" if name is not set
-        amount: totalAmount*0.65, // Assuming 65% of the total amount is settled
+        amount: totalAmount, // Assuming 65% of the total amount is settled
         requestedAt: new Date(),
       });
     } catch (err) {
