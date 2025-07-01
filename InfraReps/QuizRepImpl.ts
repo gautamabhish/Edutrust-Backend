@@ -376,6 +376,7 @@ async findByTag(tag: string): Promise<any[]> {
           tag: { name: tag },
         },
       },
+      visibleToPublic: true, // Only public quizzes
     },
     select: {
       id: true,
