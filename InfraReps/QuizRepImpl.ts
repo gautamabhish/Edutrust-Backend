@@ -41,6 +41,10 @@ export class PrismaQuizRepo implements IQuizRepository {
         });
         courseId = course.id;
       }
+      const verified = await tx.user.findUnique({
+        where: { id: data.creatorId },
+        select: { creatorVerified: true },
+      });
 
       // Create Quiz
       await tx.quiz.create({
@@ -58,6 +62,7 @@ export class PrismaQuizRepo implements IQuizRepository {
           backtrack: data.backtrack,
           randomize: data.randomize,
           currency: data.currency ?? "inr",
+          verified: verified?.creatorVerified ?? false,
         },
       });
 
