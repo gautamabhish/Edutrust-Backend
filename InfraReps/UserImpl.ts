@@ -348,7 +348,7 @@ async createOrder({
     const order = await razorpay.orders.create({
       amount: Math.round(finalAmount * 100), // paise
       currency: (quiz.currency?.toUpperCase() || "INR"),
-      receipt: `QUIZ-${quizId}`,
+      receipt: `QUIZ-is purchasing`,
       notes: {
         userId,
         quizId,
