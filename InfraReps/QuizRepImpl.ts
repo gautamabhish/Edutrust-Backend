@@ -111,7 +111,7 @@ export class PrismaQuizRepo implements IQuizRepository {
       }
 
       return quizId;
-    },{maxWait: 10000, timeout: 30000});
+    },{maxWait: 10000, timeout: 360000});
   }
 
 async findById(id: string): Promise<any> {
