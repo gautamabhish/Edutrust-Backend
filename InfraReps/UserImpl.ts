@@ -14,6 +14,25 @@ const razorpay = new Razorpay({
   key_id: process.env.KEYID!,
   key_secret: process.env.RAZOR_KEYSEC!,
 });
+let exploreCache: { data: any; expiresAt: number } | null = null;
+
+// Helper: get cached data if valid
+function getExploreCache(): any | null {
+  if (!exploreCache) return null;
+  if (Date.now() > exploreCache.expiresAt) {
+    exploreCache = null; // Expired
+    return null;
+  }
+  return exploreCache.data;
+}
+
+// Helper: set cache with TTL
+function setExploreCache(data: any, ttlMs: number) {
+  exploreCache = {
+    data,
+    expiresAt: Date.now() + ttlMs,
+  };
+}
 
 // Commission rate = 15%
 const REFERRAL_COMMISSION_RATE = 0.15;
@@ -186,6 +205,11 @@ export class UserRepositoryImpl implements IUserRepository {
   }
 
 async getExplore(): Promise<any> {
+  // 1️⃣ Try cache first
+  const cached = getExploreCache();
+  if (cached) return cached;
+
+  // 2️⃣ Query DB
   const quizzes = await this.prisma.quiz.findMany({
     where: { visibleToPublic: true },
     take: 10,
@@ -212,7 +236,7 @@ async getExplore(): Promise<any> {
     },
   });
 
-  return quizzes.map((quiz) => ({
+  const result = quizzes.map((quiz) => ({
     id: quiz.id,
     title: quiz.title,
     description: quiz.description,
@@ -224,7 +248,13 @@ async getExplore(): Promise<any> {
     creatorName: quiz.creator?.name ?? "Unknown",
     creatorProfilePic: quiz.creator?.profilePic ?? null,
   }));
+
+  // 3️⃣ Cache result  (1 hour TTL)
+  setExploreCache(result, 60* 60 * 1000);
+
+  return result;
 }
+
 
 async getOrCreateReferralToken(quizId: string, referrerId: string): Promise<string> {
   try {
