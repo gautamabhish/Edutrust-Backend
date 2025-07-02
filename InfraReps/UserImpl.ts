@@ -186,47 +186,31 @@ export class UserRepositoryImpl implements IUserRepository {
   }
 
 async getExplore(): Promise<any> {
-  const [quizzes] = await this.prisma.$transaction([
-    this.prisma.quiz.findMany({
-      where: { visibleToPublic: true },
-      take: 10,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        thumbnailURL: true,
-        price: true,
-        quizTags: {
-          select: {
-            tag: {  
-              select: { name: true },
-            },
-          },
-        },
-        duration: true,
-        verified: true,
-        creatorName: true,
-        creatorId: true, // Assuming this links to User
-      },
-    }),
-  ]);
-
-  // Fetch all user profile pics in one go to avoid N+1 queries
-  const creatorIds = quizzes.map((q) => q.creatorId);
-  const creators = await this.prisma.user.findMany({
-    where: {
-      id: { in: creatorIds },
-    },
+  const quizzes = await this.prisma.quiz.findMany({
+    where: { visibleToPublic: true },
+    take: 10,
     select: {
       id: true,
-      name: true,
-      profilePic: true,
+      title: true,
+      description: true,
+      thumbnailURL: true,
+      price: true,
+      duration: true,
+      verified: true,
+      quizTags: {
+        select: {
+          tag: { select: { name: true } },
+        },
+      },
+      creator: {
+        select: {
+          id: true,
+          name: true,
+          profilePic: true,
+        },
+      },
     },
   });
-
-  const creatorMap = new Map(
-    creators.map((u) => [u.id, { name: u.name, profilePic: u.profilePic }])
-  );
 
   return quizzes.map((quiz) => ({
     id: quiz.id,
@@ -237,8 +221,8 @@ async getExplore(): Promise<any> {
     duration: quiz.duration,
     quizTags: quiz.quizTags.map((qt) => qt.tag.name),
     verified: quiz.verified ?? false,
-    creatorName: creatorMap.get(quiz.creatorId)?.name ?? quiz.creatorName,
-    creatorProfilePic: creatorMap.get(quiz.creatorId)?.profilePic ?? null,
+    creatorName: quiz.creator?.name ?? "Unknown",
+    creatorProfilePic: quiz.creator?.profilePic ?? null,
   }));
 }
 
