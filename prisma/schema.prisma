@@ -178,7 +178,7 @@ model ReferralToken {
   createdAt  DateTime @default(now())
   quiz       Quiz     @relation("QuizReferralTokens", fields: [quizId], references: [id])
   referrer   User     @relation("UserReferralTokens", fields: [referrerId], references: [id])
-
+ expired Boolean @default(false)
   @@index([quizId], map: "ReferralToken_quizId_fkey")
   @@index([referrerId], map: "ReferralToken_referrerId_fkey")
 }

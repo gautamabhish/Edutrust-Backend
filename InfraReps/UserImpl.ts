@@ -311,7 +311,7 @@ async createOrder({
     // 3️⃣ Check referral token validity and apply discount if valid
     if (referralToken) {
       const tokenRecord = await this.prisma.referralToken.findUnique({
-        where: { token: referralToken },
+        where: { token: referralToken  , expired:false },
       });
 
       if (
