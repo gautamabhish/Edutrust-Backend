@@ -28,8 +28,10 @@ export class PrismaQuizRepo implements IQuizRepository {
   }
 
   async createQuiz(data: CreateQuizInput): Promise<string> {
+    try{
     return await prisma.$transaction(async (tx) => {
       const quizId = uuid();
+      if (!data.Questions.length) throw new Error("Quiz must have at least one question.");
 
       // Create or connect course if courseId is given
       let courseId = data.courseId ?? null;
@@ -68,50 +70,55 @@ export class PrismaQuizRepo implements IQuizRepository {
 
       // Add Tags
       if (data.Tags && data.Tags.length) {
-        for (const tag of data.Tags) {
-          const tagRecord = await tx.tag.upsert({
-            where: { name: tag },
-            update: {},
-            create: { id: uuid(), name: tag },
-          });
-         await tx.quizTag.upsert({
-      where: {
-        quizId_tagId: {
-          quizId: quizId,
-          tagId: tagRecord.id,
-        },
-      },
+     // 1️⃣ Upsert all tags in parallel, collect tag IDs
+const tagRecords = await Promise.all(
+  data.Tags.map(tag => 
+    tx.tag.upsert({
+      where: { name: tag },
       update: {},
-      create: {
-        quizId: quizId,
-        tagId: tagRecord.id,
-      },
-    });
-        }
+      create: { id: uuid(), name: tag },
+    })
+  )
+);
+
+// 2️⃣ Bulk insert quizTag
+await tx.quizTag.createMany({
+  data: tagRecords.map(tag => ({
+    quizId: quizId,
+    tagId: tag.id,
+  })),
+  skipDuplicates: true,  // avoids error if the link already exists
+});
+
+
       }
 
       // console.log(data.Questions)
-      // Add Questions
-      for (const question of data.Questions) {
-        await tx.question.create({
-          data: {
-            id: uuid(),
-            quizId,
-            type:this.mapQuestionType(question.type),
-            text: question.text,
-            points: question.points,
-            negPoints: question.negPoints ?? 0,
-            options: question.options,
-            correctAnswers: question.correctAnswers,
-            answerText: question.answerText,
-            attachFileType: question.attachFileType,
-            attachFileURL: question.attachFileURL,
-          },
-        });
-      }
+    // Add Questions
+await tx.question.createMany({
+  data: data.Questions.map((question) => ({
+    id: uuid(),
+    quizId,
+    type: this.mapQuestionType(question.type),
+    text: question.text,
+    points: question.points,
+    negPoints: question.negPoints ?? 0,
+    options: question.options,
+    correctAnswers: question.correctAnswers,
+    answerText: question.answerText,
+    attachFileType: question.attachFileType,
+    attachFileURL: question.attachFileURL,
+  })),
+});
+
 
       return quizId;
-    },{maxWait: 10000, timeout: 360000});
+    },{maxWait: 10000, timeout: 45000});
+  }
+  catch (error) {
+    console.error("Error creating quiz:", error);
+    throw new Error("Failed to create quiz");
+  }
   }
 
 async findById(id: string): Promise<any> {
@@ -387,6 +394,11 @@ async findByTag(tag: string): Promise<any[]> {
       duration: true,
       verified: true,
       creatorName: true,
+      quizTags: {
+        select: {
+          tag: { select: { name: true } }, 
+        },
+      },
     },
   }); 
   return quizzes.map(quiz => ({
@@ -398,6 +410,7 @@ async findByTag(tag: string): Promise<any[]> {
     duration: quiz.duration,
     verified: quiz.verified,
     creatorName: quiz.creatorName,
+    quizTags: quiz.quizTags.map(qt => qt.tag.name), // Extract tag names
   }));
 }
 async submitAttempt(data: {
