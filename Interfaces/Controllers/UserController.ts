@@ -172,6 +172,9 @@ export class UserController {
       const creations = await this.creationUseCase.execute(userId);
       return res.status(200).json(creations);
     } catch (err: any) {
+      if(err.message === "User is not a creator") {
+        return res.status(403).json({ error: "User is not a creator" });
+      }
       return res.status(500).json({ error: err.message });
     }
   }

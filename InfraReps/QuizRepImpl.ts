@@ -375,33 +375,67 @@ async findByIdPaid(quizId: string, userId: string): Promise<any> {
     questions: mappedQuestions,
   };
 }
-async findByTag(tag: string): Promise<any[]> {
-  const quizzes = await prisma.quiz.findMany({
-    where: {
-      quizTags: {
-        some: { 
-          tag: { name: tag },
+async findByKeyAndValue(key: string, value: string): Promise<any[]> {
+  let quizzes;
+
+  if (key === 'tag') {
+    // Special handling for tag search via quizTags relation
+    quizzes = await prisma.quiz.findMany({
+      where: {
+        visibleToPublic: true,
+        quizTags: {
+          some: {
+            tag: {
+              name: {
+                equals: value,
+              },
+            },
+          },
         },
       },
-      visibleToPublic: true, // Only public quizzes
-    },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      thumbnailURL: true,
-      price: true,
-      duration: true,
-      verified: true,
-      creatorName: true,
-      quizTags: {
-        select: {
-          tag: { select: { name: true } }, 
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        thumbnailURL: true,
+        price: true,
+        duration: true,
+        verified: true,
+        creatorName: true,
+        quizTags: {
+          select: {
+            tag: { select: { name: true } },
+          },
         },
       },
-    },
-  }); 
-  return quizzes.map(quiz => ({
+    });
+  } else {
+    // Default key-value filtering for scalar fields
+    quizzes = await prisma.quiz.findMany({
+      where: {
+        visibleToPublic: true,
+        [key]: {
+          contains: value        },
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        thumbnailURL: true,
+        price: true,
+        duration: true,
+        verified: true,
+        creatorName: true,
+        quizTags: {
+          select: {
+            tag: { select: { name: true } },
+          },
+        },
+      },
+    });
+  }
+
+  return quizzes.map((quiz) => ({
     id: quiz.id,
     title: quiz.title,
     description: quiz.description,
@@ -410,9 +444,10 @@ async findByTag(tag: string): Promise<any[]> {
     duration: quiz.duration,
     verified: quiz.verified,
     creatorName: quiz.creatorName,
-    quizTags: quiz.quizTags.map(qt => qt.tag.name), // Extract tag names
+    quizTags: quiz.quizTags.map((qt) => qt.tag.name),
   }));
 }
+
 async submitAttempt(data: {
   userId: string;
   quizId: string;

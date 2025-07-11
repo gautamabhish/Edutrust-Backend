@@ -21,7 +21,7 @@ submitAttempt(data: {
 editRating(quizId: string, userId: string, rating: number): Promise<any>; // returns Quiz data or null if not found
 findByIdPaid(quizId: string , userId:string): Promise<any>; // returns Quiz data or null if not found
 getSubmissionStats(attemptId: string ,userId : string,tx?:Prisma.TransactionClient): Promise<any>;
-findByTag(tag: string): Promise<any[]>; // returns Quiz data or null if not found
+findByKeyAndValue(key: string,value:string): Promise<any[]>; // returns Quiz data or null if not found
 getQuizByTitle(quizTitle:string): Promise<CourseDTO[]>; // returns Quiz data or null if not found
 addComment(quizId: string, userId: string, comment: string): Promise<any>; // returns Quiz data or null if not found
 }

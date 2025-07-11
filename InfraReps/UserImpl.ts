@@ -653,6 +653,14 @@ async getUserQuizzes(userId: string): Promise<CourseDTO[]> {
 
 
 async getCreations(userId: string): Promise<any> {
+
+  const role = await this.prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if(role?.role !== Prisma_Role.Admin) {
+    throw new Error("User is not a creator");
+  }
   return await this.prisma.$transaction(async (tx) => {
     // Step 1: Get all quizzes by user
     const quizzes = await tx.quiz.findMany({

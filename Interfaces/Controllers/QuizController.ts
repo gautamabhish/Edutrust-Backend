@@ -114,13 +114,31 @@ static async addComment(req: any, res: Response) {
     res.status(500).json({ message: err.message || "Failed to add comment" });
   }
 }
-static async findByTag(req: Request, res: Response) {
-  const { tag } = req.params;
-  try {
-    const quizzes = await quizRepo.findByTag(tag);
-    res.status(200).json(quizzes);
-  } catch (err: any) {
-    res.status(500).json({ message: err.message || "Failed to fetch quizzes by tag" });
+ static async findByKeyAndValue(req: Request, res: Response) {
+    const { key, value } = req.query;
+
+    const allowedKeys = ['tag', 'title', 'creatorName'];
+
+    // Safely cast to string if it's a valid value
+    const searchKey = typeof key === 'string' ? key : '';
+    const searchValue = typeof value === 'string' ? value : '';
+
+    if (!searchKey || !searchValue) {
+       return res.status(400).json({ message: 'Missing or invalid key/value' });
+    }
+
+    if (!allowedKeys.includes(searchKey)) {
+       return res.status(403).json({ message: 'Invalid search key' });
+    }
+
+    try {
+
+      const quizzes = await quizRepo.findByKeyAndValue(searchKey, searchValue);
+
+      return res.status(200).json(quizzes);
+    } catch (error) {
+      console.error('FindByKeyAndValue error:', error);
+      return res.status(500).json({ message: 'Internal Server Error' });
+    }
   }
-}
 }
