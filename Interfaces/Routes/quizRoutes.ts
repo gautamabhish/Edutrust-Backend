@@ -3,7 +3,7 @@ import { QuizController } from "../Controllers/QuizController";
 import { authMiddleware } from "../../middlewares/authMidlleWare";
 const router = Router();
 
-router.post("/create",(req , res , next)=>{authMiddleware(req,res,next)} ,QuizController.create);
+router.post("/create",(req , res , next)=>{authMiddleware(req,res,next)} ,(req,res)=>{QuizController.create(req,res)});
 router.get("/fetch/:id", QuizController.getById);
 router.get("/fetch/paid/:id",(req , res , next)=>{authMiddleware(req,res,next)},(req,res)=>{ QuizController.getByIdPaid(req,res)});
 router.post("/submit",(req , res , next)=>{authMiddleware(req,res,next)}, QuizController.submitAttempt);

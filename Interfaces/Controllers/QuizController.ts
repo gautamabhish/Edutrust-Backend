@@ -17,11 +17,14 @@ export class QuizController {
     try {
       const data = new QuizEntity(req.body);
       const quizId = await createQuizUseCase.execute(data);
-      res.status(201).json({ success: true, quizId });
+      return res.status(201).json({ success: true, quizId });
 
-    } catch (error) {
+    } catch (error:any) {
       console.error("Create quiz failed", error);
-      res.status(500).json({ error: "Failed to create quiz" });
+      if(error.message ==="User is not a creator") {
+        return res.status(403).json({ error: "User is not a creator" });
+      }
+      return res.status(500).json({ error: "Failed to create quiz" });
     }
   }
 

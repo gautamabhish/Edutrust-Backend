@@ -16,6 +16,25 @@ export interface CourseDTO {
   creatorName: string;
 
 }
+export interface UserWithCreatorProfile {
+  id: string;
+  name: string;
+  email: string;
+  profilePic: string | null;
+  creatorVerified: boolean;
+  creatorProfile?: {
+    phoneNumber: string;
+    expertise: string;
+    bio: string;
+    experiencePoints: string[];
+    telegramLink?: string;
+    instagramLink?: string;
+    linkedinLink?: string;
+    portfolioLink?: string;
+    status: string;
+  };
+}
+
 
 
 export interface CreateOrderInput {
@@ -83,4 +102,36 @@ export interface IUserRepository {
   getCreations(userId: string): Promise<any>; // returns an array of courses created by the user
   updateProfilePic(userId: string, imageUrl: string): Promise<void>;
   getProfilePic(userId: string): Promise<string | null>;
+  findByIdWithCreatorProfile(userId: string): Promise<UserWithCreatorProfile | null>;
+updateProfile(
+  userId: string,
+  data: {
+    name?: string;
+    email?: string;
+    profilePic?: string | null;
+    phoneNumber?: string;
+    expertise?: string;
+    bio?: string;
+    experiencePoints?: string[];
+    telegramLink?: string;
+    instagramLink?: string;
+    linkedinLink?: string;
+    portfolioLink?: string;
+  }
+): Promise<void>;
+
+updateOtp(
+  email: string,
+  otp: string,
+  otpExpires: Date,
+  otpPurpose: string ,
+): Promise<void>;
+
+updatePassword(
+  email: string,
+  newPassword: string,
+  otp: string 
+): Promise<void>;
+
+
 }

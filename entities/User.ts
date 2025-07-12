@@ -1,7 +1,7 @@
 // domain/entity/User.ts
 export enum Role {
   Default = "Default",
-  Admin = "Admin",
+  Creator = "Creator",
   SuperAdmin = "SuperAdmin",
 }
 
@@ -15,7 +15,8 @@ export class User {
     public otpExpires: Date = new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
     public isVerified: boolean = false,
     public createdAt: Date = new Date(),
-    public role: Role = Role.Default
+    public role: Role = Role.Creator,
+    public otpPurpose: string = "register" // Default purpose
   ) {}
 
   getPassword(): string {

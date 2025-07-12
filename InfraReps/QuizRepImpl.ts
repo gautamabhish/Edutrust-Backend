@@ -2,7 +2,7 @@ import { PrismaClient, Question, QuestionType ,Prisma } from "../generated/prism
 import { IQuizRepository } from "../IReps/IQuizRepo";
 import { CreateQuizInput } from "../entities/Quiz";
 import { v4 as uuid  } from "uuid";
-
+import { Prisma_Role } from "../generated/prisma";
 import { start } from "repl";
 import { CourseDTO } from "../IReps/IUserRepo";
 
@@ -32,7 +32,17 @@ export class PrismaQuizRepo implements IQuizRepository {
     return await prisma.$transaction(async (tx) => {
       const quizId = uuid();
       if (!data.Questions.length) throw new Error("Quiz must have at least one question.");
+     const user = await tx.user.findUnique({
+  where: { id: data.creatorId },
+  select: { role: true, creatorVerified: true },
+});
+if(user?.role !== Prisma_Role.Creator) {
+  throw new Error("User is not a creator");
+}
 
+      if(user?.role !== Prisma_Role.Creator) {
+        throw  new Error("User is not a creator");
+      }
       // Create or connect course if courseId is given
       let courseId = data.courseId ?? null;
       if (!courseId && data.courseURL) {
@@ -43,10 +53,7 @@ export class PrismaQuizRepo implements IQuizRepository {
         });
         courseId = course.id;
       }
-      const verified = await tx.user.findUnique({
-        where: { id: data.creatorId },
-        select: { creatorVerified: true },
-      });
+   
 
       // Create Quiz
       await tx.quiz.create({
@@ -64,7 +71,7 @@ export class PrismaQuizRepo implements IQuizRepository {
           backtrack: data.backtrack,
           randomize: data.randomize,
           currency: data.currency ?? "inr",
-          verified: verified?.creatorVerified ?? false,
+          verified: user?.creatorVerified ?? false,
         },
       });
 
@@ -117,7 +124,7 @@ await tx.question.createMany({
   }
   catch (error) {
     console.error("Error creating quiz:", error);
-    throw new Error("Failed to create quiz");
+    throw error;
   }
   }
 

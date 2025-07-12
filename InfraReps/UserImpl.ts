@@ -1,13 +1,12 @@
 // infra/repositories/UserRepositoryImpl.ts
 import {  Prisma_Role, PrismaClient } from "../generated/prisma";
 import { User,Role } from "../entities/User";
-import { IUserRepository } from "../IReps/IUserRepo";
+import { IUserRepository, UserWithCreatorProfile } from "../IReps/IUserRepo";
 import { CertificateDTO,CourseDTO } from "../IReps/IUserRepo";
 import { CreateOrderInput,VerifyPaymentInput } from "../IReps/IUserRepo";
 import Razorpay from "razorpay";
 import crypto from "crypto";
-
-
+import { sendProfileUpdateEmail } from "../utils/mail-config-updateProfile";
 
 // Instantiate Razorpay client
 const razorpay = new Razorpay({
@@ -97,7 +96,8 @@ export class UserRepositoryImpl implements IUserRepository {
       userData.otpExpires|| new Date(0), // Default to 10 minutes from now
       userData.isVerified,
       userData.createdAt,
-      this.fromPrismaRole(userData.role)
+      this.fromPrismaRole(userData.role),
+      userData.otpPurpose || "register",
     );
   }
 
@@ -654,11 +654,11 @@ async getUserQuizzes(userId: string): Promise<CourseDTO[]> {
 
 async getCreations(userId: string): Promise<any> {
 
-  const role = await this.prisma.user.findUnique({
+  const user = await this.prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true },
+    select: { role: true ,creatorVerified: true},
   });
-  if(role?.role !== Prisma_Role.Admin) {
+  if(user?.role !== Prisma_Role.Creator) {
     throw new Error("User is not a creator");
   }
   return await this.prisma.$transaction(async (tx) => {
@@ -734,6 +734,7 @@ for (const pay of payments) {
 
     // Final return
     return {
+      creatorVerified:user.creatorVerified,
       quizzes: quizResults,
       settlements: settlements.map(s => ({
         id: s.id,
@@ -746,6 +747,41 @@ for (const pay of payments) {
 
       })),
     };
+  });
+}
+
+async updateOtp(
+  email: string,
+  otp: string,
+  otpExpires: Date,
+  otpPurpose: string
+): Promise<void> {
+  await this.prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({ where: { email } });
+    if (!user) throw new Error('User not found');
+
+    await tx.user.update({
+      where: { email },
+      data: {
+        otp,
+        otpExpires,
+        otpPurpose,
+      },
+    });
+  });
+}
+
+async updatePassword(email: string,  newPassword: string,otp:string): Promise<void> {
+  await this.prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { email },
+      data: {
+        password: newPassword,
+        otp: null,
+        otpExpires: null,
+        otpPurpose: "register",
+      },
+    });
   });
 }
 
@@ -779,6 +815,148 @@ async setRedeemStatus(referralId: string) {
     referrerEmail: r.referrer.email,
   })).catch(() => null);
 }
+
+async findByIdWithCreatorProfile(userId: string): Promise<UserWithCreatorProfile | null> {
+  return this.prisma.$transaction(async (tx) => {
+    const userWithCreatorProfile = await tx.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        profilePic: true,
+        creatorVerified: true,
+        creatorProfile: {
+          select: {
+            phoneNumber: true,
+            expertise: true,
+            bio: true,
+            experiencePoint1: true,
+            experiencePoint2: true,
+            experiencePoint3: true,
+            experiencePoint4: true,
+            experiencePoint5: true,
+            telegramLink: true,
+            instagramLink: true,
+            linkedinLink: true,
+            portfolioLink: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!userWithCreatorProfile) return null;
+
+    const rawProfile = userWithCreatorProfile.creatorProfile;
+
+    const creatorProfile = rawProfile
+      ? {
+          phoneNumber: rawProfile.phoneNumber,
+          expertise: rawProfile.expertise,
+          bio: rawProfile.bio,
+          experiencePoints: [
+            rawProfile.experiencePoint1,
+            rawProfile.experiencePoint2,
+            rawProfile.experiencePoint3,
+            rawProfile.experiencePoint4,
+            rawProfile.experiencePoint5,
+          ].filter(Boolean) as string[],
+          telegramLink: rawProfile.telegramLink || undefined,
+          instagramLink: rawProfile.instagramLink || undefined,
+          linkedinLink: rawProfile.linkedinLink || undefined,
+          portfolioLink: rawProfile.portfolioLink || undefined,
+          status: rawProfile.status.toString(),
+        }
+      : undefined;
+
+    return {
+      id: userWithCreatorProfile.id,
+      name: userWithCreatorProfile.name,
+      email: userWithCreatorProfile.email,
+      profilePic: userWithCreatorProfile.profilePic,
+      creatorVerified: userWithCreatorProfile.creatorVerified,
+      creatorProfile,
+    };
+  });
+}
+
+async updateProfile(
+  userId: string,
+  profileData: {
+    name?: string;
+    email?: string;
+    profilePic?: string | null;
+    phoneNumber?: string;
+    expertise?: string;
+    bio?: string;
+    experiencePoints?: string[];
+    telegramLink?: string;
+    instagramLink?: string;
+    linkedinLink?: string;
+    portfolioLink?: string;
+  }
+): Promise<void> {
+  const sanitizedData = {
+    name: profileData.name?.trim(),
+    email: profileData.email?.trim(),
+    profilePic: profileData.profilePic ?? null,
+    phoneNumber: profileData.phoneNumber?.trim() ?? null,
+    expertise: profileData.expertise?.trim() ?? null,
+    bio: profileData.bio?.trim() ?? null,
+    experiencePoints: profileData.experiencePoints
+      ?.map((pt) => pt?.trim())
+      .filter(Boolean) ?? [],
+    telegramLink: profileData.telegramLink?.trim() ?? null,
+    instagramLink: profileData.instagramLink?.trim() ?? null,
+    linkedinLink: profileData.linkedinLink?.trim() ?? null,
+    portfolioLink: profileData.portfolioLink?.trim() ?? null,
+  };
+
+  await this.prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(sanitizedData.name && { name: sanitizedData.name }),
+      ...(sanitizedData.email && { email: sanitizedData.email }),
+      ...(sanitizedData.profilePic && { profilePic: sanitizedData.profilePic }),
+
+      creatorProfile: {
+        upsert: {
+          create: {
+            phoneNumber: sanitizedData.phoneNumber!,
+            expertise: sanitizedData.expertise!,
+            bio: sanitizedData.bio!,
+            experiencePoint1: sanitizedData.experiencePoints[0] ?? null,
+            experiencePoint2: sanitizedData.experiencePoints[1] ?? null,
+            experiencePoint3: sanitizedData.experiencePoints[2] ?? null,
+            experiencePoint4: sanitizedData.experiencePoints[3] ?? null,
+            experiencePoint5: sanitizedData.experiencePoints[4] ?? null,
+            telegramLink: sanitizedData.telegramLink,
+            instagramLink: sanitizedData.instagramLink,
+            linkedinLink: sanitizedData.linkedinLink,
+            portfolioLink: sanitizedData.portfolioLink,
+            status: "PENDING", // Default status
+          },
+          update: {
+            ...(sanitizedData.phoneNumber && { phoneNumber: sanitizedData.phoneNumber }),
+            ...(sanitizedData.expertise && { expertise: sanitizedData.expertise }),
+            ...(sanitizedData.bio && { bio: sanitizedData.bio }),
+            experiencePoint1: sanitizedData.experiencePoints[0] ?? null,
+            experiencePoint2: sanitizedData.experiencePoints[1] ?? null,
+            experiencePoint3: sanitizedData.experiencePoints[2] ?? null,
+            experiencePoint4: sanitizedData.experiencePoints[3] ?? null,
+            experiencePoint5: sanitizedData.experiencePoints[4] ?? null,
+            telegramLink: sanitizedData.telegramLink,
+            instagramLink: sanitizedData.instagramLink,
+            linkedinLink: sanitizedData.linkedinLink,
+            portfolioLink: sanitizedData.portfolioLink,
+          },
+        },
+      },
+    },
+  });
+}
+
 
 
 }

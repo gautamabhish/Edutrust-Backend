@@ -10,6 +10,7 @@ import { GetTrending } from "../../UseCases/User/getTrending";
 import { authMiddleware } from "../../middlewares/authMidlleWare";
 import { GetReferralIdUseCase } from "../../UseCases/User/GetReferral";
 import { getCertificateByIdUseCase } from "../../UseCases/User/GetCertificateById";
+import { GetProfileRequest } from "../../UseCases/User/getProfile";
 import {v2 as cloudinary} from "cloudinary";
 import { getCreations } from "../../UseCases/User/GetCreation";
 import { GetReferral } from "../../UseCases/User/getReferralUseCase";
@@ -17,6 +18,9 @@ import { updateProfilePic } from "../../UseCases/User/updateProfilePic";
 import { VerifyOTP } from "../../UseCases/User/VerifyOTP";
 import { SetRedeemStatus } from "../../UseCases/User/SetReferralRedeemStatus";
 import { SetQuizSettlementRequest } from "../../UseCases/User/SetQuizSettlement";
+import { UpdateProfileRequest } from "../../UseCases/User/updateProfile";
+import { ForgotPassword } from "../../UseCases/User/forgotPassword";
+import { VerifyOTPandUpdatePass } from "../../UseCases/User/verifyOTPandUpdatePass";
 const router = Router();
 const prisma = new PrismaClient();
 const userRepo = new UserRepositoryImpl(prisma);
@@ -37,11 +41,18 @@ const getCertificateByIdCase = new getCertificateByIdUseCase(userRepo);
 const getReferralusecase = new GetReferral(userRepo);
 const updateProfilePicUsecase = new updateProfilePic(userRepo);
 const Creations = new getCreations(userRepo);
+const getProfile = new GetProfileRequest(userRepo);
 const setQuizSettlement = new SetQuizSettlementRequest(userRepo);
 const verifyOTP = new VerifyOTP(userRepo);
-const controller = new UserController(registerUser, loginUser, getDashBoard , getTrending , getReferralId,getCertificateByIdCase,getReferralusecase,updateProfilePicUsecase,Creations,verifyOTP ,setRedeemStatus ,setQuizSettlement);
+const updateProfile = new UpdateProfileRequest(userRepo);
+const forgotPassword = new ForgotPassword(userRepo);
+const verifyOTPAndUpdatePass = new VerifyOTPandUpdatePass(userRepo);
+const controller = new UserController(registerUser, loginUser, getDashBoard , getTrending , getReferralId,getCertificateByIdCase,getReferralusecase,updateProfilePicUsecase,Creations,verifyOTP ,setRedeemStatus ,setQuizSettlement ,getProfile,updateProfile , forgotPassword , verifyOTPAndUpdatePass);
+
 router.post("/register", async (req, res) => {await controller.register(req, res)});
 router.post("/login", async(req, res) => {await controller.login(req, res)});
+router.put("/forgot-password", async(req, res) => {await controller.forgotPass(req, res)});
+router.put("/verify-otp-and-update-pass", async(req, res) => {await controller.verifyOTPandUpdatePass(req, res)});
 // router.get("/session/start", async (req, res) => { await  });
 router.post("/QuizSettlementRequested", (req, res, next) => { authMiddleware(req, res, next) }, async (req, res) => { await controller.setQuizSettlement(req, res) });
 router.post("/verify-otp", async(req, res) => {await controller.verifyOTP(req, res)});
@@ -75,4 +86,7 @@ router.post("/signature", async (req, res, next) => {authMiddleware(req, res, ne
     apiKey: cloudinary.config().api_key,
     cloudName: cloudinary.config().cloud_name,
   });});
+
+router.get("/get-profile", (req, res, next) => { authMiddleware(req, res, next) }, async (req, res) => { await controller.getCreatorProfile(req, res) });
+router.post("/update-profile", (req, res, next) => { authMiddleware(req, res, next) }, async (req, res) => { await controller.updateCreatorProfile(req, res) });
 export default router;

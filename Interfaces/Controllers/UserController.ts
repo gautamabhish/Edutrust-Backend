@@ -11,7 +11,12 @@ import { updateProfilePic } from "../../UseCases/User/updateProfilePic";
 import { getCreations } from "../../UseCases/User/GetCreation";
 import { VerifyOTP } from "../../UseCases/User/VerifyOTP";
 import { SetRedeemStatus } from "../../UseCases/User/SetReferralRedeemStatus";
+import { GetProfileRequest } from "../../UseCases/User/getProfile";
 import { SetQuizSettlementRequest } from "../../UseCases/User/SetQuizSettlement";
+import { UpdateProfileRequest } from "../../UseCases/User/updateProfile";
+import { sendProfileUpdateEmail } from "../../utils/mail-config-updateProfile";
+import { ForgotPassword } from "../../UseCases/User/forgotPassword";
+import { VerifyOTPandUpdatePass } from "../../UseCases/User/verifyOTPandUpdatePass";
 export class UserController {
   constructor(
     private registerUser: RegisterUser,
@@ -25,8 +30,11 @@ export class UserController {
     private creationUseCase: getCreations,
     private VerifyOTP: VerifyOTP,
     private setStatusCheck: SetRedeemStatus,
-    private setquizSettlementAndAmount: SetQuizSettlementRequest
-
+    private setquizSettlementAndAmount: SetQuizSettlementRequest,
+    private getProfile: GetProfileRequest,
+    private updateProfile: UpdateProfileRequest,
+    private forgotPassword: ForgotPassword,
+    private verifyOTPAndUpdatePass: VerifyOTPandUpdatePass
   ) {}
 
   async register(req: Request, res: Response) {
@@ -196,6 +204,84 @@ export class UserController {
         .json({ message: "Profile picture updated successfully" });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
+    }
+  }
+async updateCreatorProfile(req: any, res: Response) {
+  const userId = req.user?.id as string;
+  if (!userId) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const {
+      name,
+      email,
+      profilePic,
+      phoneNumber,
+      expertise,
+      bio,
+      experiencePoints,
+      telegramLink,
+      instagramLink,
+      linkedinLink,
+      portfolioLink,
+    } = req.body;
+
+    await this.updateProfile.execute(userId, {
+      name,
+      email,
+      profilePic,
+      phoneNumber,
+      expertise,
+      bio,
+      experiencePoints,
+      telegramLink,
+      instagramLink,
+      linkedinLink,
+      portfolioLink,
+    });
+    await sendProfileUpdateEmail({  email  });
+    return res.status(200).json({ message: "Profile updated successfully" });
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
+}
+
+async getCreatorProfile(req: any, res: Response) {
+    const userId = req.user?.id as string;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const userProfile = await this.getProfile.execute(userId);
+      if (!userProfile) {
+        return res.status(404).json({ message: "User profile not found" });
+      }
+      return res.status(200).json(userProfile);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+async forgotPass(req: Request, res: Response) {
+    const { email } = req.body;
+    try {
+      const result = await this.forgotPassword.execute(email);
+      return res.status(200).json(result);
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
+async verifyOTPandUpdatePass(req: Request, res: Response) {
+    const { email, otp, newPassword } = req.body;
+    try {
+      const result = await this.verifyOTPAndUpdatePass.execute(email, otp, newPassword);
+      return res.status(200).json(result);
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message });
     }
   }
 }

@@ -50,6 +50,7 @@ model User {
   isVerified Boolean  @default(false)
   otp        String?   // Store OTP temporarily
   otpExpires DateTime? // Expiry time for OTP
+  otpPurpose String   @default("register")
   createdAt      DateTime        @default(now())
   role           Prisma_Role     @default(Default)
   profilePic     String          @default("/user.jpg")
@@ -64,6 +65,7 @@ model User {
   quizPayments    QuizPayment[]
   testSeries UserTestSeries[]
    reviews   Review[]
+   creatorProfile CreatorProfile?
 }
 
 
@@ -207,7 +209,7 @@ model QuizRating {
 
 enum Prisma_Role {
   Default
-  Admin
+  Creator
   SuperAdmin
 }
 
@@ -269,4 +271,31 @@ enum QuestionType {
   MultipleChoice
   Subjective
   File
+}
+model CreatorProfile {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  phoneNumber      String
+  expertise        String   // max 10 words
+  bio              String   // max 70 words
+  experiencePoint1 String?  // instead of JSON array
+  experiencePoint2 String?
+  experiencePoint3 String?
+  experiencePoint4 String?
+  experiencePoint5 String?
+
+  telegramLink     String?
+  instagramLink    String?
+  linkedinLink     String?
+  portfolioLink    String?
+
+  status           VerificationStatus @default(PENDING)
+  user             User     @relation(fields: [userId], references: [id])
+}
+
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
