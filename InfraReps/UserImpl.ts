@@ -204,15 +204,22 @@ export class UserRepositoryImpl implements IUserRepository {
     }));
   }
 
-async getExplore(): Promise<any> {
-  // 1️⃣ Try cache first
-  const cached = getExploreCache();
-  if (cached) return cached;
+async getExplore(cursor: string|null): Promise<{ data: any[]; nextCursor: string | null }> {
+  // 1️⃣ Return cache only for first page
+  if (!cursor) {
+    const cached = getExploreCache();
+    if (cached) return cached;
+  }
 
-  // 2️⃣ Query DB
+  // 2️⃣ Fetch from DB with optional cursor
   const quizzes = await this.prisma.quiz.findMany({
     where: { visibleToPublic: true },
-    take: 10,
+    take: 16, // fetch 1 extra to check if there's more
+    ...(cursor && {
+      skip: 1,
+      cursor: { id: cursor },
+    }),
+    orderBy: { createdAt: 'desc' }, // required for stable pagination
     select: {
       id: true,
       title: true,
@@ -236,24 +243,35 @@ async getExplore(): Promise<any> {
     },
   });
 
-  const result = quizzes.map((quiz) => ({
+  // 3️⃣ Determine if more data exists
+  const hasMore = quizzes.length > 15;
+  const pageData = quizzes.slice(0, 15); // remove the extra item
+
+  const result = pageData.map((quiz) => ({
     id: quiz.id,
     title: quiz.title,
     description: quiz.description,
-    thumbnailURL: quiz.thumbnailURL ?? "",
+    thumbnailURL: quiz.thumbnailURL ?? '',
     price: quiz.price,
     duration: quiz.duration,
     quizTags: quiz.quizTags.map((qt) => qt.tag.name),
     verified: quiz.verified ?? false,
-    creatorName: quiz.creator?.name ?? "Unknown",
+    creatorName: quiz.creator?.name ?? 'Unknown',
     creatorProfilePic: quiz.creator?.profilePic ?? null,
   }));
 
-  // 3️⃣ Cache result  (1 hour TTL)
-  setExploreCache(result, 60* 60 * 1000);
+  // 4️⃣ Set cache only for first page
+  if (!cursor) {
+    setExploreCache({ data: result, nextCursor: hasMore ? pageData[14].id : null }, 60 * 60 * 1000);
+  }
 
-  return result;
+  // 5️⃣ Return paginated response
+  return {
+    data: result,
+    nextCursor: hasMore ? pageData[14].id : null,
+  };
 }
+
 
 
 async getOrCreateReferralToken(quizId: string, referrerId: string): Promise<string> {

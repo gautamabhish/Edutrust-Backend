@@ -70,7 +70,7 @@ export interface IUserRepository {
 
   getRecommendedCourses(userId: string): Promise<CourseDTO[]>;
 
-  getExplore(): Promise<any>; // returns an array of trending quizzes
+  getExplore(cursor:string|null): Promise<any>; // returns an array of trending quizzes
 
   getOrCreateReferralToken(quizId: string, referrerId: string): Promise<string>;
   createOrder(input: CreateOrderInput): Promise<{

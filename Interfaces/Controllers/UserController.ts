@@ -78,7 +78,8 @@ export class UserController {
   }
   async getTrending(req: Request, res: Response) {
     try {
-      const trending = await this.ExploreUsecase.execute();
+      const cursor = req.query.cursor as string | null;
+      const trending = await this.ExploreUsecase.execute(cursor);
       return res.status(200).json(trending);
     } catch (err: any) {
       return res.status(500).json({ error: err.message });

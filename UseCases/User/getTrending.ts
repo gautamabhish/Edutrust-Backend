@@ -6,8 +6,8 @@ export class GetTrending {
   constructor(private userRepo: IUserRepository) {}
 
 
-  async execute(): Promise<{ courses: CourseDTO[] }> {
-    const courses: CourseDTO[] = await this.userRepo.getExplore();
+  async execute(cursor:string|null): Promise<{ courses: CourseDTO[] }> {
+    const courses: CourseDTO[] = await this.userRepo.getExplore(cursor);
     return { courses };
   }
 }
