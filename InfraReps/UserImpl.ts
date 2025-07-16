@@ -34,7 +34,8 @@ function setExploreCache(data: any, ttlMs: number) {
 }
 
 // Commission rate = 15%
-const REFERRAL_COMMISSION_RATE = 0.15;
+const REFERRAL_COMMISSION_RATE = 0.10;
+const REFERRAL_DISCOUNT_RATE = 0.20; // 15% discount for referral
 export class UserRepositoryImpl implements IUserRepository {
   constructor(private prisma: PrismaClient) {}
   async update(user: User): Promise<void> {
@@ -354,6 +355,10 @@ async createOrder({
         referralApplied = true;
       }
     }
+    finalAmount = referralApplied
+      ? quiz.price * (1 - REFERRAL_DISCOUNT_RATE) // Apply 15% discount
+      : quiz.price; 
+    
 
     // 4️⃣ Handle free quiz (finalAmount zero)
     if (finalAmount === 0) {
@@ -490,6 +495,7 @@ async createOrder({
           tokenRecord &&
           tokenRecord.quizId === quizId &&
           tokenRecord.referrerId !== userId
+          && !tokenRecord.expired
         ) {
           // Ensure this user hasn't already been referred for this quiz
           const existingReferral = await tx.referral.findFirst({
@@ -506,6 +512,11 @@ async createOrder({
                 earnedAmount: commissionAmount,
                 redeemed: false,
               },
+            });
+            const newCounter = tokenRecord.counter + 1;
+            await tx.referralToken.update({
+              where: { token: referralToken },
+              data: { counter: {increment:1},expired : newCounter >= 20 }, // Expire after 5 uses
             });
           }
         }
