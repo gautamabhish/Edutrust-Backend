@@ -21,8 +21,8 @@ jobs:
       - name: Build and push Docker image
         run: |
           IMAGE_TAG=build-${{ github.run_number }}
-          docker build -t your-user/edutrust-backend:$IMAGE_TAG .
-          docker push your-user/edutrust-backend:$IMAGE_TAG
+          docker build -t gautamabhis/edutrust-backend:$IMAGE_TAG .
+          docker push gautamabhis/edutrust-backend:$IMAGE_TAG
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
       - name: Checkout chart repo
