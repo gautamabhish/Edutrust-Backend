@@ -46,8 +46,7 @@ jobs:
       - name: Update values.yaml
         run: |
           cd chart-repo/
-          yq e ".image.tag = \"$IMAGE_TAG\"" -i helm/edutrust-chart/values.yaml
-
+          sed -i "s/^  tag: .*/  tag: \"${IMAGE_TAG}\"/" helm/edutrust-chart/values.yaml
       - name: Commit and push chart update
         run: |
           cd chart-repo
