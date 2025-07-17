@@ -19,7 +19,7 @@ app.use(cors(
 ));
 app.use(express.json());
 app.get('/', (req, res) => {
-  res.send('Access Blocked ...');
+  res.send('Access Blocked for devops test ...');
 });
 
 app.use('/api/users/auth',userRoutes);
