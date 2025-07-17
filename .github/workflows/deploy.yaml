@@ -1,47 +1,51 @@
-name: CI-CD with GitOps
+name: Build and Deploy Backend
 
 on:
   push:
-    branches: [devops-test]
+    branches: [main] # or your branch name
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    env:
-      IMAGE_NAME: gautamabhis/edutrust-backend 
 
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set Image Tag
-        run: echo "IMAGE_TAG=build-${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
-
-      - name: Log in to Docker Hub
+      - name: Log in to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Build and Push Docker Image
+      - name: Build and push Docker image
         run: |
-          docker build -t $IMAGE_NAME:$IMAGE_TAG .
-          docker push $IMAGE_NAME:$IMAGE_TAG
+          IMAGE_TAG=build-${{ github.run_number }}
+          docker build -t your-user/edutrust-backend:$IMAGE_TAG .
+          docker push your-user/edutrust-backend:$IMAGE_TAG
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
-      - name: Trivy Image Scan
-        uses: aquasecurity/trivy-action@master
+      - name: Checkout chart repo
+        uses: actions/checkout@v3
         with:
-          image-ref: $IMAGE_NAME:$IMAGE_TAG
-          format: 'table'
-
-      - name: Update Helm values.yaml
+          repository: gautamabhish/edutrust-devops
+          token: ${{ secrets.CICDTOKEN }} # needs write access
+          path: chart-repo
+      - name: Install yq
         run: |
-          sed -i "s|tag: .*|tag: \"$IMAGE_TAG\"|" helm/edutrust-chart/values.yaml
+          sudo apt-get update
+          sudo apt-get install -y yq   # Install yq for YAML processing
 
-      - name: Commit and Push Updated Chart
+      - name: Update values.yaml
         run: |
+          cd chart-repo/
+          yq e ".image.tag = \"$IMAGE_TAG\"" -i helm/edutrust-chart/values.yaml
+
+      - name: Commit and push chart update
+        run: |
+          cd chart-repo
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add charts/my-app/values.yaml
-          git commit -m "CI: Update image tag to $IMAGE_TAG"
+          git add .
+          git commit -m "Update image tag to $IMAGE_TAG"
           git push
