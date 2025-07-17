@@ -34,7 +34,7 @@ jobs:
       - name: Checkout chart repo
         uses: actions/checkout@v3
         with:
-          repository:gautamabhish/edutrustDevops
+          repository: gautamabhish/edutrustDevops
           token: ${{ secrets.CICDTOKEN }} # needs write access
           path: chart-repo
           ref: main # or your chart branch
