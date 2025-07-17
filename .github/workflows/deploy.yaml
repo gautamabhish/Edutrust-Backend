@@ -2,7 +2,7 @@ name: Build and Deploy Backend
 
 on:
   push:
-    branches: [main] # or your branch name
+    branches: [devops-test] # or your branch name
 
 jobs:
   build-and-deploy:
