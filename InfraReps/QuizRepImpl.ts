@@ -748,6 +748,7 @@ const grouped = await client.quizAttempt.groupBy({
     userName: userNameMap[u.userId] ?? 'Unknown',
     score: u.score,
     rank: userRanks[u.userId],
+    userId: u.userId,
   }));
 
 // 7. Get rank of this specific attempt
