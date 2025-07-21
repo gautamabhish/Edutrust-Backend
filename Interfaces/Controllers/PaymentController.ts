@@ -23,7 +23,11 @@ export default class PaymentController {
       return res.status(200).json(result);
     } catch (err: any) {
       console.error("CreateOrder error:", err);
-      return res.status(409).json({ error: err.message });
+      if(err.message.includes("This quiz is already purchased or attempted by the user."))
+      {
+        return res.status(409).json({ error: err.message });
+      }
+      return res.status(400).json({ error: err.message });
     }
   }
 
@@ -62,6 +66,7 @@ export default class PaymentController {
       return res.status(200).json(result);
     } catch (err: any) {
       console.error("VerifyPayment error:", err);
+      if(err.message.includes("This quiz is already purchased or attempted by the user.")) return res.status(409).json({ error: err.message });
       return res.status(400).json({ error: err.message });
     }
   }
