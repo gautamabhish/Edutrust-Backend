@@ -23,51 +23,67 @@ model Certificate {
   @@index([quizId], map: "Certificate_quizId_fkey")
 }
 
-model TestSeries {
-  id          String   @id @default(uuid())
+model LearningPath {
+  id          String           @id @default(uuid())
   title       String
   description String?
-  createdAt   DateTime @default(now())
-  quizzes     Quiz[]   @relation("TestSeriesQuizzes")
-  users UserTestSeries[]
+  createdAt   DateTime         @default(now())
+  quizzes     Quiz[]           @relation("LearningPathRelation")
+  users       UserTestSeries[]
 }
 
+model AttemptAnswer {
+  id         String   @id @default(uuid())
+  attemptId  String
+  questionId String
+  selected   Json     // Could be array for multiple choice
+  correct    Boolean
+
+  attempt   QuizAttempt @relation(fields: [attemptId], references: [id])
+  question  Question    @relation(fields: [questionId], references: [id])
+
+  @@index([attemptId])
+}
+
+
 model UserTestSeries {
-  A  String
-  B  String
+   testSeriesId String
+  userId       String
 
-  user        User        @relation(fields: [B], references: [id])
-  testSeries  TestSeries  @relation(fields: [A], references: [id])
+  user       User         @relation(fields: [userId], references: [id])
+  testSeries LearningPath @relation(fields: [testSeriesId], references: [id])
 
-  @@id([A, B])
+  @@id([testSeriesId, userId])
 }
 
 model User {
-  id             String          @id @default(uuid())
-  name           String
-  email          String          @unique
-  password       String
-  isVerified Boolean  @default(false)
-  otp        String?   // Store OTP temporarily
-  otpExpires DateTime? // Expiry time for OTP
-  otpPurpose String   @default("register")
-  createdAt      DateTime        @default(now())
-  role           Prisma_Role     @default(Default)
-  profilePic     String          @default("/user.jpg")
-  certificates   Certificate[]
-  quizzesCreated Quiz[]          @relation("QuizCreator")
-  quizAttempts   QuizAttempt[]
-  quizRatings    QuizRating[]
-  creatorVerified Boolean  @default(false)
-  referredAs     Referral[]      @relation("ReferredUser")
-  referralsMade  Referral[]      @relation("Referrer")
-  referralTokens ReferralToken[] @relation("UserReferralTokens")
+  id              String           @id @default(uuid())
+  name            String
+  email           String           @unique
+  password        String
+  isVerified      Boolean          @default(false)
+  otp             String? // Store OTP temporarily
+  otpExpires      DateTime? // Expiry time for OTP
+  otpPurpose      String           @default("register")
+  createdAt       DateTime         @default(now())
+  role            Prisma_Role      @default(Default)
+  profilePic      String           @default("/user.jpg")
+  certificates    Certificate[]
+  quizzesCreated  Quiz[]           @relation("QuizCreator")
+  quizAttempts    QuizAttempt[]
+  quizRatings     QuizRating[]
+  creatorVerified Boolean          @default(false)
+  referredAs      Referral[]       @relation("ReferredUser")
+  referralsMade   Referral[]       @relation("Referrer")
+  referralTokens  ReferralToken[]  @relation("UserReferralTokens")
   quizPayments    QuizPayment[]
-  testSeries UserTestSeries[]
-   reviews   Review[]
-   creatorProfile CreatorProfile?
+  testSeries      UserTestSeries[]
+  reviews         Review[]
+  creatorProfile  CreatorProfile?
+  QuizDiscussion  QuizDiscussion[]
+  UserXP          UserXP[]
+  UserBadge       UserBadge[]
 }
-
 
 model Quiz {
   id              String            @id @default(uuid())
@@ -92,24 +108,25 @@ model Quiz {
   questions       Question[]
   course          Course?           @relation(fields: [courseId], references: [id])
   creator         User              @relation("QuizCreator", fields: [creatorId], references: [id])
-  testSeries      TestSeries?       @relation("TestSeriesQuizzes", fields: [testSeriesId], references: [id])
+  testSeries      LearningPath?     @relation("LearningPathRelation", fields: [testSeriesId], references: [id])
   quizAttempts    QuizAttempt[]
   quizRatings     QuizRating[]
   referrals       Referral[]
   referralTokens  ReferralToken[]   @relation("QuizReferralTokens")
-  quizTags QuizTag[]
-   reviews   Review[]
-quizPayments   QuizPayment[] 
+  quizTags        QuizTag[]
+  reviews         Review[]
+  quizPayments    QuizPayment[]
+  QuizDiscussion  QuizDiscussion[]
   @@index([courseId], map: "Quiz_courseId_fkey")
   @@index([creatorId], map: "Quiz_creatorId_fkey")
   @@index([testSeriesId], map: "Quiz_testSeriesId_fkey")
 }
 
 model Course {
-  id      String  @id @default(uuid())
-  name    String
-  url     String? @unique
-  quizzes Quiz[]
+  id         String      @id @default(uuid())
+  name       String
+  url        String?     @unique
+  quizzes    Quiz[]
   courseTags CourseTag[]
 }
 
@@ -122,7 +139,6 @@ model CourseTag {
 
   @@id([courseId, tagId]) // ✅ Composite primary key
 }
-
 
 model Question {
   id             String       @id @default(uuid())
@@ -137,36 +153,64 @@ model Question {
   text           String
   negPoints      Int
   quiz           Quiz         @relation(fields: [quizId], references: [id])
+  explanation    String?
+ AttemptAnswers AttemptAnswer[]
+
 
   @@index([quizId], map: "Question_quizId_fkey")
 }
+
+model QuizDiscussion {
+  id        String   @id @default(uuid())
+  quizId    String
+  userId    String
+  text      String
+  createdAt DateTime @default(now())
+
+  quiz Quiz @relation(fields: [quizId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([quizId])
+  @@index([userId])
+}
+enum AttemptStatus {
+  STARTED
+  COMPLETED
+  ABANDONED
+  TIMED_OUT
+}
+
 
 model QuizAttempt {
   id         String    @id @default(uuid())
   userId     String
   quizId     String
+  attemptNumber Int 
   score      Float?
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
+  status AttemptStatus @default(STARTED)
   quiz       Quiz      @relation(fields: [quizId], references: [id])
   user       User      @relation(fields: [userId], references: [id])
+  AttemptAnswers AttemptAnswer[]
 
   @@index([quizId], map: "QuizAttempt_quizId_fkey")
   @@index([userId], map: "QuizAttempt_userId_fkey")
+
 }
 
 model Referral {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   referrerId     String
   referredUserId String?
   quizId         String
-  earnedAmount   Float    @default(0)
-  createdAt      DateTime @default(now())
-  redeemed       Boolean  @default(false)
+  earnedAmount   Float     @default(0)
+  createdAt      DateTime  @default(now())
+  redeemed       Boolean   @default(false)
   settledDate    DateTime?
-  quiz           Quiz     @relation(fields: [quizId], references: [id])
-  referredUser   User?    @relation("ReferredUser", fields: [referredUserId], references: [id])
-  referrer       User     @relation("Referrer", fields: [referrerId], references: [id])
+  quiz           Quiz      @relation(fields: [quizId], references: [id])
+  referredUser   User?     @relation("ReferredUser", fields: [referredUserId], references: [id])
+  referrer       User      @relation("Referrer", fields: [referrerId], references: [id])
 
   @@index([quizId], map: "Referral_quizId_fkey")
   @@index([referredUserId], map: "Referral_referredUserId_fkey")
@@ -180,17 +224,18 @@ model ReferralToken {
   createdAt  DateTime @default(now())
   quiz       Quiz     @relation("QuizReferralTokens", fields: [quizId], references: [id])
   referrer   User     @relation("UserReferralTokens", fields: [referrerId], references: [id])
-  counter    Int  @default(0)
- expired Boolean @default(false)
+  counter    Int      @default(0)
+  expired    Boolean  @default(false)
+
   @@index([quizId], map: "ReferralToken_quizId_fkey")
   @@index([referrerId], map: "ReferralToken_referrerId_fkey")
 }
 
 model Tag {
-  id      String   @id @default(uuid())
-  name    String   @unique
+  id         String      @id @default(uuid())
+  name       String      @unique
   courseTags CourseTag[]
- quizTags QuizTag[]
+  quizTags   QuizTag[]
 }
 
 model QuizRating {
@@ -229,6 +274,7 @@ model QuizTag {
 
   @@id([quizId, tagId]) // ✅ Composite primary key
 }
+
 model Review {
   id        String   @id @default(uuid())
   quizId    String
@@ -240,32 +286,31 @@ model Review {
   // Optional: include a rating (if comments include a score)
 
   // Relations
-  quiz      Quiz     @relation(fields: [quizId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  quiz Quiz @relation(fields: [quizId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 model QuizPayment {
-  id          String   @id @default(uuid())
-  userId      String
-  quizId      String
-  orderId     String   // Razorpay or gateway order ID
-  paymentId   String   // Razorpay or gateway payment ID
-  amount      Float
-  currency    String
-  paidAt      DateTime @default(now())
+  id            String    @id @default(uuid())
+  userId        String
+  quizId        String
+  orderId       String // Razorpay or gateway order ID
+  paymentId     String // Razorpay or gateway payment ID
+  amount        Float
+  currency      String
+  paidAt        DateTime  @default(now())
   redeemRequest Boolean   @default(false)
-  settled     Boolean  @default(false)
-  settledAt   DateTime?
+  settled       Boolean   @default(false)
+  settledAt     DateTime?
 
   user User @relation(fields: [userId], references: [id])
   quiz Quiz @relation(fields: [quizId], references: [id])
 
+  @@unique([paymentId]) // ensure no duplicate payments recorded
   @@index([quizId])
   @@index([userId])
   @@index([settled])
-  @@unique([paymentId]) // ensure no duplicate payments recorded
 }
-
 
 enum QuestionType {
   SingleChoice
@@ -273,30 +318,48 @@ enum QuestionType {
   Subjective
   File
 }
+
 model CreatorProfile {
-  id               String   @id @default(uuid())
-  userId           String   @unique
+  id               String  @id @default(uuid())
+  userId           String  @unique
   phoneNumber      String
-  expertise        String   // max 10 words
-  bio              String   // max 70 words
-  experiencePoint1 String?  // instead of JSON array
+  expertise        String // max 10 words
+  bio              String // max 70 words
+  experiencePoint1 String? // instead of JSON array
   experiencePoint2 String?
   experiencePoint3 String?
   experiencePoint4 String?
   experiencePoint5 String?
 
-  telegramLink     String?
-  instagramLink    String?
-  linkedinLink     String?
-  portfolioLink    String?
+  telegramLink  String?
+  instagramLink String?
+  linkedinLink  String?
+  portfolioLink String?
 
-  status           VerificationStatus @default(PENDING)
-  user             User     @relation(fields: [userId], references: [id])
+  status VerificationStatus @default(PENDING)
+  user   User               @relation(fields: [userId], references: [id])
 }
-
 
 enum VerificationStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model UserXP {
+  userId       String    @id
+  xp           Int       @default(0)
+  streak       Int       @default(0)
+  lastQuizDate DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model UserBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  badgeName String
+  earnedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }
