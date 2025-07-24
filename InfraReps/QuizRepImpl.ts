@@ -685,114 +685,116 @@ async editRating(quizId: string, userId: string, rating: number): Promise<any> {
   ,{maxWait: 10000, timeout: 30000});
 }
 async getSubmissionStats(
-    attemptId: string,
-    userId: string,
-    tx?: Prisma.TransactionClient
-  ): Promise<any> {
-    const client = tx ?? prisma;
+  attemptId: string,
+  userId: string,
+  tx?: Prisma.TransactionClient
+): Promise<any> {
+  const client = tx ?? prisma;
 
-    // 1) Validate attempt ownership and fetch core info
-    const attempt = await client.quizAttempt.findUnique({
-      where: { id: attemptId },
-      select: {
-        id: true,
-        userId: true,
-        quizId: true,
-        score: true,
-        totalScore: true,
-        startedAt: true,
-        finishedAt: true,
-      },
-    });
-    if (!attempt || attempt.userId !== userId) {
-      throw new Error('Attempt not found or does not belong to this user.');
-    }
+  // 1) Validate attempt ownership and fetch core info
+  const attempt = await client.quizAttempt.findUnique({
+    where: { id: attemptId },
+    select: {
+      id: true,
+      userId: true,
+      quizId: true,
+      score: true,
+      totalScore: true,
+      startedAt: true,
+      finishedAt: true,
+    },
+  });
 
-    const { quizId, score: userScore } = attempt;
-
-    // 2) Fetch quiz metadata
-    const quiz = await client.quiz.findUnique({
-      where: { id: quizId },
-      select: { title: true },
-    });
-    if (!quiz) throw new Error('Quiz not found.');
-
-    // 3) Aggregate peer statistics
-    const agg = await client.quizAttempt.aggregate({
-      where: { quizId },
-      _avg: { score: true },
-      _max: { score: true },
-      _min: { score: true },
-      _count: { id: true },
-    });
-
-    const peerStats = {
-      averageScore: Number((agg._avg.score ?? 0).toFixed(1)),
-      highestScore: agg._max.score ?? 0,
-      lowestScore: agg._min.score ?? 0,
-      totalAttempts: agg._count.id,
-    };
-
-    // 4) Compute this user's overall rank (1 = highest score)
-    const betterCount = await client.quizAttempt.count({
-      where: { quizId, score: { gt: userScore ?? 0 } },
-    });
-    const userRank = betterCount + 1;
-
-    // 5) Build leaderboard: best score per user
-    const grouped = await client.quizAttempt.groupBy({
-      by: ['userId'],
-      where: { quizId },
-      _max: { score: true },
-    });
-
-    const leaderboard = grouped
-      .map(g => ({ userId: g.userId, score: g._max.score ?? 0 }))
-      .sort((a, b) => b.score - a.score);
-
-    // Take top 5
-    const topEntries = leaderboard.slice(0, 5);
-    const topUserIds = topEntries.map(e => e.userId);
-
-    // Fetch user names in one query
-    const users = await client.user.findMany({
-      where: { id: { in: topUserIds } },
-      select: { id: true, name: true },
-    });
-    const nameMap = Object.fromEntries(users.map(u => [u.id, u.name]));
-
-    const topAttempts = topEntries.map((e, idx) => ({
-      userId: e.userId,
-      userName: nameMap[e.userId] ?? 'Unknown',
-      score: e.score,
-      rank: idx + 1,
-    }));
-
-    // 6) Certificate info
-    const cert = await client.certificate.findUnique({
-      where: { userId_quizId: { userId, quizId } },
-      select: { id: true },
-    });
-
-    // 7) Assemble response
-    return {
-      userAttempt: {
-        id: attempt.id,
-        quizId,
-        score: attempt.score,
-        userRank,
-        totalScore: attempt.totalScore,
-        startedAt: attempt.startedAt,
-        finishedAt: attempt.finishedAt!,
-      },
-      quizTitle: quiz.title,
-      peerStats,
-      topAttempts,
-      totalUsers: leaderboard.length,
-      certificateIssued: Boolean(cert),
-      certificateId: cert?.id,
-    };
+  if (!attempt || attempt.userId !== userId) {
+    throw new Error('Attempt not found or does not belong to this user.');
   }
+
+  const { quizId, score: userScore } = attempt;
+
+  // 2) Fetch quiz metadata
+  const quiz = await client.quiz.findUnique({
+    where: { id: quizId },
+    select: { title: true },
+  });
+  if (!quiz) throw new Error('Quiz not found.');
+
+  // 3) Aggregate peer statistics (based on all attempts)
+  const agg = await client.quizAttempt.aggregate({
+    where: { quizId },
+    _avg: { score: true },
+    _max: { score: true },
+    _min: { score: true },
+    _count: { id: true },
+  });
+
+  const peerStats = {
+    averageScore: Number((agg._avg.score ?? 0).toFixed(1)),
+    highestScore: agg._max.score ?? 0,
+    lowestScore: agg._min.score ?? 0,
+    totalAttempts: agg._count.id,
+  };
+
+  // 4) Group best score per user (for leaderboard and accurate ranking)
+  const grouped = await client.quizAttempt.groupBy({
+    by: ['userId'],
+    where: { quizId },
+    _max: { score: true },
+  });
+
+  // Build leaderboard: best score per user
+  const leaderboard = grouped
+    .map(g => ({ userId: g.userId, score: g._max.score ?? 0 }))
+    .sort((a, b) => b.score - a.score);
+
+  // 5) Compute this user's overall rank (based on best score per user)
+  const userBestScore = leaderboard.find(g => g.userId === userId)?.score ?? 0;
+  const betterCount = leaderboard.filter(e => e.score > userBestScore).length;
+  const userRank = betterCount + 1;
+
+  // 6) Top 5 users
+  const topEntries = leaderboard.slice(0, 5);
+  const topUserIds = topEntries.map(e => e.userId);
+
+  const users = await client.user.findMany({
+    where: { id: { in: topUserIds } },
+    select: { id: true, name: true },
+  });
+
+  const nameMap = Object.fromEntries(users.map(u => [u.id, u.name]));
+
+  const topAttempts = topEntries.map((e, idx) => ({
+    userId: e.userId,
+    userName: nameMap[e.userId] ?? 'Unknown',
+    score: e.score,
+    rank: idx + 1,
+  }));
+
+  // 7) Certificate info
+  const cert = await client.certificate.findUnique({
+    where: { userId_quizId: { userId, quizId } },
+    select: { id: true },
+  });
+
+  // 8) Assemble response
+  return {
+    userAttempt: {
+      id: attempt.id,
+      quizId,
+      score: attempt.score,
+      userRank,
+      totalScore: attempt.totalScore,
+      startedAt: attempt.startedAt,
+      finishedAt: attempt.finishedAt!,
+    },
+    quizTitle: quiz.title,
+    peerStats,
+    topAttempts,
+    totalUsers: leaderboard.length, // Correct total unique users
+    certificateIssued: Boolean(cert),
+    certificateId: cert?.id,
+  };
+}
+
 
 async getQuizByTitle(quizTitle: string): Promise<CourseDTO[]> {
   const quizzes = await prisma.quiz.findMany({
