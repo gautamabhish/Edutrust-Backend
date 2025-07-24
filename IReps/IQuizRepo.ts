@@ -1,6 +1,10 @@
 import { CreateQuizInput } from "../entities/Quiz";
 import { Prisma } from "../generated/prisma";
 import { CourseDTO } from "./IUserRepo";
+export type ResourceItemInput =
+  | { type: 'QUIZ'; quizId: string }
+  | { type: 'ARTICLE' | 'VIDEO' | 'LINK'; resourceTitle: string; resourceUrl: string };
+
 export interface IQuizRepository {
   createQuiz(data: CreateQuizInput): Promise<string>; // returns Quiz ID
   
@@ -25,4 +29,16 @@ findByKeyAndValue(key: string,value:string): Promise<any[]>; // returns Quiz dat
 getQuizByTitle(quizTitle:string): Promise<CourseDTO[]>; // returns Quiz data or null if not found
 addComment(quizId: string, userId: string, comment: string): Promise<any>; // returns Quiz data or null if not found
 AttemptAnalysis(quizId: string, userId: string, tx?: Prisma.TransactionClient): Promise<any>; // returns Quiz data or null if not found
+ addResourceItemToPath(
+    pathId: string,
+    order: number,
+    input: ResourceItemInput
+  ): Promise<void>;
+  getItemsInPath(pathId: string): Promise<any[]>;
+
+  removeItemFromPath(itemId: string, pathId: string): Promise<void>;
+
+  updateItemOrderInPath(itemId: string, pathId: string, newOrder: number): Promise<void>;
+
+  getUserLearningPaths(userId: string): Promise<any[]>;
 }

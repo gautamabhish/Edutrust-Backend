@@ -24,30 +24,52 @@ model Certificate {
 }
 
 model LearningPath {
-  id          String           @id @default(uuid())
+  id          String             @id @default(uuid())
   title       String
   description String?
-  createdAt   DateTime         @default(now())
-  quizzes     Quiz[]           @relation("LearningPathRelation")
+  createdAt   DateTime           @default(now())
+  items       LearningPathItem[]
   users       UserTestSeries[]
 }
 
+model LearningPathItem {
+  id             String       @id @default(uuid())
+  learningPathId String
+  learningPath   LearningPath @relation(fields: [learningPathId], references: [id])
+  type           ResourceType
+  order          Int
+  quizId         String?
+  quiz           Quiz?        @relation(fields: [quizId], references: [id])
+  resourceTitle  String?
+  resourceUrl    String?
+  createdAt      DateTime     @default(now())
+
+  @@unique([learningPathId, quizId])
+  @@index([learningPathId, order])
+}
+
+enum ResourceType {
+  QUIZ
+  ARTICLE
+  VIDEO
+  LINK
+}
+
 model AttemptAnswer {
-  id         String   @id @default(uuid())
+  id         String  @id @default(uuid())
   attemptId  String
   questionId String
-  selected   Json     // Could be array for multiple choice
+  selected   Json // Could be array for multiple choice
   correct    Boolean
 
-  attempt   QuizAttempt @relation(fields: [attemptId], references: [id])
-  question  Question    @relation(fields: [questionId], references: [id])
+  attempt  QuizAttempt @relation(fields: [attemptId], references: [id])
+  question Question    @relation(fields: [questionId], references: [id])
 
   @@index([attemptId])
 }
 
-
 model UserTestSeries {
-   testSeriesId String
+  testSeriesId String
   userId       String
 
   user       User         @relation(fields: [userId], references: [id])
@@ -62,8 +84,8 @@ model User {
   email           String           @unique
   password        String
   isVerified      Boolean          @default(false)
-  otp             String? // Store OTP temporarily
-  otpExpires      DateTime? // Expiry time for OTP
+  otp             String?
+  otpExpires      DateTime?
   otpPurpose      String           @default("register")
   createdAt       DateTime         @default(now())
   role            Prisma_Role      @default(Default)
@@ -86,40 +108,40 @@ model User {
 }
 
 model Quiz {
-  id              String            @id @default(uuid())
+  id              String             @id @default(uuid())
   title           String
   description     String
-  createdAt       DateTime          @default(now())
+  createdAt       DateTime           @default(now())
   creatorId       String
   courseId        String?
   difficulty      Prisma_Difficulty
-  visibleToPublic Boolean           @default(true)
-  backtrack       Boolean           @default(true)
+  visibleToPublic Boolean            @default(true)
+  backtrack       Boolean            @default(true)
   duration        Int
-  randomize       Boolean           @default(false)
-  thumbnailURL    String            @default("https://res.cloudinary.com/dcn4q3zt1/image/upload/v1748680038/pexels-leeloothefirst-5428830_tmxie9.jpg")
-  avgRating       Float             @default(0)
-  currency        String?           @default("inr")
-  price           Float             @default(0)
-  testSeriesId    String?
+  randomize       Boolean            @default(false)
+  thumbnailURL    String             @default("https://res.cloudinary.com/dcn4q3zt1/image/upload/pexels.jpg")
+  avgRating       Float              @default(0)
+  currency        String?            @default("inr")
+  price           Float              @default(0)
   creatorName     String
-  verified        Boolean           @default(false)
+  verified        Boolean            @default(false)
   certificates    Certificate[]
   questions       Question[]
-  course          Course?           @relation(fields: [courseId], references: [id])
-  creator         User              @relation("QuizCreator", fields: [creatorId], references: [id])
-  testSeries      LearningPath?     @relation("LearningPathRelation", fields: [testSeriesId], references: [id])
-  quizAttempts    QuizAttempt[]
-  quizRatings     QuizRating[]
-  referrals       Referral[]
-  referralTokens  ReferralToken[]   @relation("QuizReferralTokens")
-  quizTags        QuizTag[]
-  reviews         Review[]
-  quizPayments    QuizPayment[]
-  QuizDiscussion  QuizDiscussion[]
+  course          Course?            @relation(fields: [courseId], references: [id])
+  creator         User               @relation("QuizCreator", fields: [creatorId], references: [id])
+  learningItems   LearningPathItem[]
+
+  quizAttempts   QuizAttempt[]
+  quizRatings    QuizRating[]
+  referrals      Referral[]
+  referralTokens ReferralToken[]  @relation("QuizReferralTokens")
+  quizTags       QuizTag[]
+  reviews        Review[]
+  quizPayments   QuizPayment[]
+  QuizDiscussion QuizDiscussion[]
+
   @@index([courseId], map: "Quiz_courseId_fkey")
   @@index([creatorId], map: "Quiz_creatorId_fkey")
-  @@index([testSeriesId], map: "Quiz_testSeriesId_fkey")
 }
 
 model Course {
@@ -137,11 +159,11 @@ model CourseTag {
   course Course @relation(fields: [courseId], references: [id])
   tag    Tag    @relation(fields: [tagId], references: [id])
 
-  @@id([courseId, tagId]) // ✅ Composite primary key
+  @@id([courseId, tagId])
 }
 
 model Question {
-  id             String       @id @default(uuid())
+  id             String          @id @default(uuid())
   quizId         String
   type           QuestionType
   answerText     String?
@@ -152,10 +174,9 @@ model Question {
   points         Int
   text           String
   negPoints      Int
-  quiz           Quiz         @relation(fields: [quizId], references: [id])
+  quiz           Quiz            @relation(fields: [quizId], references: [id])
   explanation    String?
- AttemptAnswers AttemptAnswer[]
-
+  AttemptAnswers AttemptAnswer[]
 
   @@index([quizId], map: "Question_quizId_fkey")
 }
@@ -173,6 +194,7 @@ model QuizDiscussion {
   @@index([quizId])
   @@index([userId])
 }
+
 enum AttemptStatus {
   STARTED
   COMPLETED
@@ -180,24 +202,23 @@ enum AttemptStatus {
   TIMED_OUT
 }
 
-
 model QuizAttempt {
-  id         String    @id @default(uuid())
-  userId     String
-  quizId     String
-  attemptNumber Int 
-  score      Float?
-  totalScore Float  @default(0)
-  startedAt  DateTime  @default(now())
-  finishedAt DateTime?
-  status AttemptStatus @default(STARTED)
-  quiz       Quiz      @relation(fields: [quizId], references: [id])
-  user       User      @relation(fields: [userId], references: [id])
-  AttemptAnswers AttemptAnswer[]
-  analysisAccessed  Boolean  @default(false)
+  id               String          @id @default(uuid())
+  userId           String
+  quizId           String
+  attemptNumber    Int
+  score            Float?
+  totalScore       Float           @default(0)
+  startedAt        DateTime        @default(now())
+  finishedAt       DateTime?
+  status           AttemptStatus   @default(STARTED)
+  quiz             Quiz            @relation(fields: [quizId], references: [id])
+  user             User            @relation(fields: [userId], references: [id])
+  AttemptAnswers   AttemptAnswer[]
+  analysisAccessed Boolean         @default(false)
+
   @@index([quizId], map: "QuizAttempt_quizId_fkey")
   @@index([userId], map: "QuizAttempt_userId_fkey")
-
 }
 
 model Referral {
@@ -273,7 +294,7 @@ model QuizTag {
   quiz Quiz @relation(fields: [quizId], references: [id])
   tag  Tag  @relation(fields: [tagId], references: [id])
 
-  @@id([quizId, tagId]) // ✅ Composite primary key
+  @@id([quizId, tagId])
 }
 
 model Review {
@@ -284,9 +305,6 @@ model Review {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Optional: include a rating (if comments include a score)
-
-  // Relations
   quiz Quiz @relation(fields: [quizId], references: [id])
   user User @relation(fields: [userId], references: [id])
 }
@@ -295,8 +313,8 @@ model QuizPayment {
   id            String    @id @default(uuid())
   userId        String
   quizId        String
-  orderId       String // Razorpay or gateway order ID
-  paymentId     String // Razorpay or gateway payment ID
+  orderId       String
+  paymentId     String
   amount        Float
   currency      String
   paidAt        DateTime  @default(now())
@@ -307,7 +325,7 @@ model QuizPayment {
   user User @relation(fields: [userId], references: [id])
   quiz Quiz @relation(fields: [quizId], references: [id])
 
-  @@unique([paymentId]) // ensure no duplicate payments recorded
+  @@unique([paymentId])
   @@index([quizId])
   @@index([userId])
   @@index([settled])
@@ -324,9 +342,9 @@ model CreatorProfile {
   id               String  @id @default(uuid())
   userId           String  @unique
   phoneNumber      String
-  expertise        String // max 10 words
-  bio              String // max 70 words
-  experiencePoint1 String? // instead of JSON array
+  expertise        String
+  bio              String
+  experiencePoint1 String?
   experiencePoint2 String?
   experiencePoint3 String?
   experiencePoint4 String?

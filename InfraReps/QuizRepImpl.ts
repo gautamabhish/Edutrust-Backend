@@ -5,7 +5,7 @@ import { v4 as uuid  } from "uuid";
 import { Prisma_Role ,AttemptStatus} from "../generated/prisma";
 import { start } from "repl";
 import { CourseDTO } from "../IReps/IUserRepo";
-
+import { ResourceItemInput } from "../IReps/IQuizRepo";
 const prisma = new PrismaClient();
 
 export class PrismaQuizRepo implements IQuizRepository {
@@ -857,4 +857,89 @@ async addComment(quizId: string, userId: string, comment: string): Promise<any> 
 
   }, { maxWait: 10000, timeout: 30000 });
 }
+async  addItemToPath(
+  pathId: string,
+  order: number,
+  input: ResourceItemInput
+): Promise<void> {
+  await prisma.learningPathItem.create({
+    data: {
+      id: uuid(),
+      learningPathId: pathId,
+      type: input.type,
+      order,
+      quizId: input.type === 'QUIZ' ? input.quizId : undefined,
+      resourceTitle: input.type !== 'QUIZ' ? input.resourceTitle : undefined,
+      resourceUrl: input.type !== 'QUIZ' ? input.resourceUrl : undefined,
+    },
+  });
+}
+
+async getItemsInPath(pathId: string): Promise<any[]> {
+  return await prisma.learningPathItem.findMany({
+    where: { learningPathId: pathId },
+    orderBy: { order: 'asc' },
+    select: {
+      id: true,
+      type: true,
+      order: true,
+      quizId: true,
+      resourceTitle: true,
+      resourceUrl: true,
+    },
+  });
+}
+async addResourceItemToPath(pathId: string, order: number, input: ResourceItemInput): Promise<void> {
+  await prisma.learningPathItem.create({
+    data: {
+      id: uuid(),
+      learningPathId: pathId,
+      type: input.type,
+      order,
+      quizId: input.type === 'QUIZ' ? input.quizId : undefined,
+      resourceTitle: input.type !== 'QUIZ' ? input.resourceTitle : undefined,
+      resourceUrl: input.type !== 'QUIZ' ? input.resourceUrl : undefined,
+    },
+  });
+}
+async removeItemFromPath(itemId: string, pathId: string): Promise<void> {
+  await prisma.learningPathItem.delete({
+    where: { id: itemId },
+  });
+}
+async updateItemOrderInPath(itemId: string, pathId: string, newOrder: number): Promise<void> {
+  await prisma.learningPathItem.update({
+    where: { id: itemId },
+    data: { order: newOrder },
+  });
+}
+
+async  getUserLearningPaths(userId: string): Promise<any[]> {
+  return await prisma.learningPath.findMany({
+    where: {
+      users: {
+        some: {
+          userId, // filter through UserTestSeries table
+        },
+      },
+    },
+    include: {
+      items: {
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          type: true,
+          order: true,
+          quizId: true,
+          resourceTitle: true,
+          resourceUrl: true,
+        },
+      },
+    },
+  });
+}
+
+
+
+
 }
