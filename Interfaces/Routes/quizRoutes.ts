@@ -10,7 +10,7 @@ router.post("/submit",(req , res , next)=>{authMiddleware(req,res,next)}, QuizCo
 router.post("/fetch/:attemptId",(req , res , next)=>{authMiddleware(req,res,next)}, QuizController.getSubmissionStats);
 router.post("/add-comment/:quizId", (req, res, next) => { authMiddleware(req, res, next) }, QuizController.addComment);
 router.get("/search/:title", QuizController.getQuizByTitle);
-router.put("/edit-rating/:quizId", (req, res, next) => { authMiddleware(req, res, next) }, QuizController.editRating);
+router.put("/edit-rating/:quizId", (req, res, next) => { authMiddleware(req, res, next) }, (req,res)=>{QuizController.editRating(req,res)});
 router.get("/find-by", (req,res)=>{QuizController.findByKeyAndValue(req,res)});
-
+router.get("/attempt-analysis/:quizId", (req, res, next) => { authMiddleware(req, res, next) }, (req,res)=>{QuizController.attemptAnalysis(req,res)});
 export default router;

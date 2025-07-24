@@ -100,9 +100,9 @@ static async editRating(req: any, res: Response) {
 
   try {
     const updatedQuiz = await quizRepo.editRating(quizId, userId, rating);
-    res.status(200).json(updatedQuiz);
+    return res.status(200).json(updatedQuiz);
   } catch (err: any) {
-    res.status(500).json({ message: err.message || "Failed to edit rating" });
+    return res.status(500).json({ message: err.message || "Failed to edit rating" });
   }
 }
 static async addComment(req: any, res: Response) {
@@ -144,4 +144,19 @@ static async addComment(req: any, res: Response) {
       return res.status(500).json({ message: 'Internal Server Error' });
     }
   }
+
+static async attemptAnalysis(req: any, res: Response) {
+  const { quizId } = req.params;
+  const userId = req.user?.id; // Assuming user ID is available in req.user
+
+  try {
+    const analysis = await quizRepo.AttemptAnalysis(quizId, userId);
+     return res.status(200).json(analysis);
+  } catch (err: any) {
+    if(err.message === "No attempts found for quiz  by user") {
+      return res.status(404).json({ message: err.message });
+    }
+    return res.status(500).json({ message: err.message || "Failed to fetch attempt analysis" });
+  }
+}
 }

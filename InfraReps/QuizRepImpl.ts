@@ -2,7 +2,7 @@ import { PrismaClient, Question, QuestionType ,Prisma } from "../generated/prism
 import { IQuizRepository } from "../IReps/IQuizRepo";
 import { CreateQuizInput } from "../entities/Quiz";
 import { v4 as uuid  } from "uuid";
-import { Prisma_Role } from "../generated/prisma";
+import { Prisma_Role ,AttemptStatus} from "../generated/prisma";
 import { start } from "repl";
 import { CourseDTO } from "../IReps/IUserRepo";
 
@@ -40,9 +40,6 @@ if(user?.role !== Prisma_Role.Creator) {
   throw new Error("User is not a creator");
 }
 
-      if(user?.role !== Prisma_Role.Creator) {
-        throw  new Error("User is not a creator");
-      }
       // Create or connect course if courseId is given
       let courseId = data.courseId ?? null;
       if (!courseId && data.courseURL) {
@@ -79,14 +76,16 @@ if(user?.role !== Prisma_Role.Creator) {
       if (data.Tags && data.Tags.length) {
      // 1️⃣ Upsert all tags in parallel, collect tag IDs
 const tagRecords = await Promise.all(
-  data.Tags.map(tag => 
+  data.Tags.map(tag =>
     tx.tag.upsert({
       where: { name: tag },
       update: {},
       create: { id: uuid(), name: tag },
+      select: { id: true }, // ✅ ensures tag.id is available
     })
   )
 );
+
 
 // 2️⃣ Bulk insert quizTag
 await tx.quizTag.createMany({
@@ -324,16 +323,24 @@ async findByIdPaid(quizId: string, userId: string): Promise<any> {
   
   await prisma.quizAttempt.updateMany({
     where: { finishedAt: null, userId, quizId },
-    data: { finishedAt: new Date() }, 
+    data: { finishedAt: new Date() ,status:AttemptStatus.ABANDONED}, 
   });
-
+  const previousAttemptsCount = await prisma.quizAttempt.count({  
+    where: {
+      userId,
+      quizId,
+    },
+  });
   attempt = await prisma.quizAttempt.create({
     data: {
       id: crypto.randomUUID(),
       userId,
       quizId,
+      status:AttemptStatus.STARTED,
+      attemptNumber:previousAttemptsCount+1 ,
       startedAt: new Date(),
       score: 0,
+      totalScore: 0, // Initialize totalScore
       finishedAt: null, // Leave it null for now
     },
   });
@@ -456,172 +463,197 @@ async findByKeyAndValue(key: string, value: string): Promise<any[]> {
 }
 
 async submitAttempt(data: {
-  userId: string;
-  quizId: string;
-  answers: {
-    questionId: string;
-    selectedOptions?: number[];
-    answerText?: string;
-  }[];
-  startedAt: Date | string | number;
-  finishedAt?: Date | string | number;
-}): Promise<any> {
-  // Ensure startedAt and finishedAt are Date objects
-  data.startedAt = new Date(data.startedAt);
-  const finishTime = data.finishedAt
-    ? new Date(data.finishedAt)
-    : new Date();
+    userId: string;
+    quizId: string;
+    answers: {
+      questionId: string;
+      selectedOptions?: number[];
+      answerText?: string;
+    }[];
+    startedAt: Date | string | number;
+    finishedAt?: Date | string | number;
+  }): Promise<any> {
+    const startedAt = new Date(data.startedAt);
+    const finishedAt = data.finishedAt ? new Date(data.finishedAt) : new Date();
 
-  console.log('Starting submit attempt with data:', JSON.stringify(data, null, 2));
-
-  return await prisma.$transaction(async (tx) => {
-    // 1) Load all questions for this quiz once
-    const owns = await tx.quizAttempt.findFirst({
-      where: {
-        userId: data.userId,
-        quizId: data.quizId,
-        finishedAt: null, // Means it's in-progress
-      },
-    });
-    if (!owns) {
-      throw new Error("You don't own this quiz or it's not in-progress.");
-    }
-    const questions = await tx.question.findMany({
-      where: { quizId: data.quizId }
-    });
-
-    console.log('Loaded questions:', questions.map(q => ({ 
-      id: q.id, 
-      type: q.type, 
-      correctAnswers: q.correctAnswers,
-      points: q.points,
-      negPoints: q.negPoints 
-    })));
-
-    let score = 0;
-    let totalScore = 0 ;
-// Step 1: Map answers for quick lookup
-const answerMap = new Map(
-  data.answers.map((a) => [a.questionId, a])
-);
-
-// Step 2: Loop over all questions, not just answers
-for (const question of questions) {
-  totalScore += question.points; // Always count this toward totalScore
-
-  const userAnswer = answerMap.get(question.id);
-
-  if (!userAnswer) {
-    // User skipped this question
-    console.log(`Skipped question ${question.id}`);
-    continue;
-  }
-
-  if (question.type === QuestionType.SingleChoice || question.type === QuestionType.MultipleChoice) {
-    const correctAnswers = question.correctAnswers as number[];
-    const selectedOptions = userAnswer.selectedOptions || [];
-
-    const isCorrect = this.arraysEqual(
-      correctAnswers.slice().sort(),
-      selectedOptions.slice().sort()
-    );
-
-    if (isCorrect) {
-      score += question.points;
-    } else {
-      if (selectedOptions.length > 0) {
-        score -= question.negPoints;
-      }
-    }
-  }
-
-  if (question.type === "Subjective" || question.type === "File") {
-    console.log(`Skipping subjective/file question ${question.id}`);
-    // You may skip or log for manual evaluation
-  }
-}
-
-
-    console.log(`Final calculated score: ${score}`);
-    console.log(`Total score possible: ${totalScore}`);
-
-    // 3) Attempt to find an existing QuizAttempt session
-    let attemptRecord = await tx.quizAttempt.findFirst({
-      where: {
-        userId: data.userId,
-        quizId: data.quizId,
-        finishedAt: null, // Means it's in-progress
-      },
-    });
-
-    console.log('Found existing attempt:', attemptRecord?.id);
-
-    // 4) Update or Create the QuizAttempt
-    if (attemptRecord) {
-      attemptRecord = await tx.quizAttempt.update({
-        where: { id: attemptRecord.id },
-        data: {
-          score,
-          finishedAt: new Date(finishTime),
-        },
+    return await prisma.$transaction(async (tx) => {
+      // 1) Fetch in-progress attempt
+      const inProgress = await tx.quizAttempt.findFirst({
+        where: { userId: data.userId, quizId: data.quizId, status: AttemptStatus.STARTED },
       });
-      console.log('Updated attempt with score:', score);
-    } else {
-      attemptRecord = await tx.quizAttempt.create({
-        data: {
-          id: crypto.randomUUID(),
+      if (!inProgress) {
+        throw new Error("No active attempt found or it's already completed.");
+      }
+
+      // 2) Enforce duration
+      const quiz = await tx.quiz.findUnique({
+        where: { id: data.quizId },
+        select: { duration: true },
+      });
+      if (!quiz) throw new Error('Quiz not found');
+      const elapsedMs = finishedAt.getTime() - startedAt.getTime();
+      const allowedMs = quiz.duration * 60_000;
+      if (elapsedMs > allowedMs) {
+        await tx.quizAttempt.update({
+          where: { id: inProgress.id },
+          data: { status: AttemptStatus.TIMED_OUT, finishedAt },
+        });
+        throw new Error('Time limit exceeded; attempt marked TIMED_OUT');
+      }
+
+      // 3) Abandon other attempts
+      await tx.quizAttempt.updateMany({
+        where: {
           userId: data.userId,
           quizId: data.quizId,
+          status: AttemptStatus.STARTED,
+          NOT: { id: inProgress.id },
+        },
+        data: { status: AttemptStatus.ABANDONED, finishedAt },
+      });
+
+      // 4) Score calculation
+      const questions = await tx.question.findMany({ where: { quizId: data.quizId } });
+      let score = 0;
+      let totalScore = 0;
+      const answerMap = new Map(data.answers.map(a => [a.questionId, a]));
+      const answersToInsert: Prisma.AttemptAnswerCreateManyInput[] = [];
+
+      for (const q of questions) {
+        totalScore += q.points;
+        const ua = answerMap.get(q.id);
+        let selected: any = [];
+        let correct = false;
+
+        if (ua) {
+          if (  q.type === QuestionType.SingleChoice ||
+        q.type === QuestionType.MultipleChoice) {
+            const correctArr = q.correctAnswers as number[];
+            const sel = ua.selectedOptions || [];
+            selected = sel;
+            correct = this.arraysEqual(correctArr.slice().sort(), sel.slice().sort());
+            score += correct ? q.points : -(sel.length ? q.negPoints : 0);
+          } else {
+            // Subjective or File
+            selected = ua.answerText || '';
+          }
+        }
+
+        answersToInsert.push({
+          id: crypto.randomUUID(),
+          attemptId: inProgress.id,
+          questionId: q.id,
+          selected,
+          correct,
+        });
+      }
+
+      // 5) Finalize this attempt
+      const updatedAttempt = await tx.quizAttempt.update({
+        where: { id: inProgress.id },
+        data: {
           score,
-          startedAt: data.startedAt as Date,
-          finishedAt: new Date(finishTime),
+          totalScore,
+          finishedAt,
+          status: AttemptStatus.COMPLETED,
         },
       });
-      console.log('Created new attempt with score:', score);
-    }
 
-   // 5) Count attempt number for the user
-const attemptCount = await tx.quizAttempt.count({
+      // 6) Bulk insert answers
+      await tx.attemptAnswer.createMany({ data: answersToInsert });
+
+      // 7) Certificate issuance
+      const countAttempts = await tx.quizAttempt.count({ where: { userId: data.userId, quizId: data.quizId } });
+      const hasAccessed = await tx.quizAttempt.findFirst({
   where: {
     userId: data.userId,
     quizId: data.quizId,
+    analysisAccessed: true,
   },
+  select: { id: true },
 });
+ if (!hasAccessed) {
+  // Upsert-style: create if none exists, otherwise update
+  const certData = {
+    userId: data.userId,
+    quizId: data.quizId,
+    score,
+    totalScore,
+    count: countAttempts,
+    
+  };
 
-// 6) Upsert certificate — replace old with new
-let certificateId: string | undefined;
-try {
-  const cert = await tx.certificate.upsert({
+  await tx.certificate.upsert({
     where: {
-       userId_quizId:{ userId: data.userId,
+      userId_quizId: {
+        userId: data.userId,
         quizId: data.quizId,
-       }
-      
-    },
-    update: {
-      score,
-      count: attemptCount,
-      issuedAt: new Date(),
+      },
     },
     create: {
       id: crypto.randomUUID(),
-      userId: data.userId,
-      quizId: data.quizId,
-      score,
-      totalScore:totalScore,
-      count: attemptCount,
+      ...certData,
     },
-    select: { id: true },
+    update: certData,
   });
-  certificateId = cert.id;
-  console.log('Certificate created or updated:', certificateId);
-} catch (error) {
-  console.log('Certificate creation/upsert failed:', error);
 }
- // 6) Return everything
-    return  await this.getSubmissionStats(attemptRecord.id, data.userId,tx);
-  },{maxWait: 10000, timeout: 30000});
-}
+
+      // 8) Return stats
+      return this.getSubmissionStats(updatedAttempt.id, data.userId, tx);
+    }, { maxWait: 10000, timeout: 30000 });
+  }
+
+  // Retrieve deep analysis & mark as accessed
+  async AttemptAnalysis(quizId: string, userId: string): Promise<any> {
+    // 1) Mark analysisAccessed
+    await prisma.quizAttempt.updateMany({
+      where: { quizId, userId, status: AttemptStatus.COMPLETED, analysisAccessed: false },
+      data: { analysisAccessed: true },
+    });
+
+    // 2) Fetch attempts list
+    const attempts = await prisma.quizAttempt.findMany({
+      where: { quizId, userId },
+      orderBy: { startedAt: 'desc' },
+      select: { id: true, score: true, startedAt: true, finishedAt: true, attemptNumber: true, totalScore: true },
+    });
+    if (!attempts.length) throw new Error('No attempts found for analysis');
+
+    // 3) Question type distribution
+    const stats = await prisma.question.groupBy({
+      by: ['type'], where: { quizId }, _count: { type: true },
+    });
+    const typeDist = stats.reduce((acc, cur) => ({ ...acc, [cur.type]: cur._count.type }), {});
+
+    // 4) Detailed breakdown of latest
+    const latestId = attempts[0].id;
+    const detailed = await prisma.attemptAnswer.findMany({
+      where: { attemptId: latestId }, include: { question: { select: { id: true, text: true, type: true, correctAnswers: true, options: true } } },
+    });
+    const breakdown = detailed.map(ans => ({
+      questionId: ans.question.id,
+      title: ans.question.text,
+      type: ans.question.type,
+      selectedAnswer: ans.selected,
+      correctAnswer: ans.question.correctAnswers,
+      isCorrect: ans.correct,
+      options: ans.question.options,
+    }));
+
+    return {
+      attempts,
+      latestAttemptDetails: {
+        attemptId: latestId,
+        score: attempts[0].score,
+        startedAt: attempts[0].startedAt,
+        finishedAt: attempts[0].finishedAt,
+        questionBreakdown: breakdown,
+        totalScore: attempts[0].totalScore,
+      },
+      questionTypeDistribution: typeDist,
+    };
+  }
+
 async editRating(quizId: string, userId: string, rating: number): Promise<any> {
   return await prisma.$transaction(async (tx) => {
     // 1) Check if user has already rated this quiz
@@ -653,148 +685,114 @@ async editRating(quizId: string, userId: string, rating: number): Promise<any> {
   ,{maxWait: 10000, timeout: 30000});
 }
 async getSubmissionStats(
-  attemptId: string,
-  userId: string,
-  tx?: Prisma.TransactionClient  // <- optional transaction client
-): Promise<any> {
-  const client = tx ?? prisma; // use passed tx or fallback to global prisma
+    attemptId: string,
+    userId: string,
+    tx?: Prisma.TransactionClient
+  ): Promise<any> {
+    const client = tx ?? prisma;
 
-  // 1) Fetch the specific attempt by ID & ensure it belongs to this user
-  const userAttemptRecord = await client.quizAttempt.findUnique({
-    where: { id: attemptId },
-    select: {
-      id: true,
-      userId: true,
-      quizId: true,
-      score: true,
-      startedAt: true,
-      finishedAt: true,
-    },
-  });
+    // 1) Validate attempt ownership and fetch core info
+    const attempt = await client.quizAttempt.findUnique({
+      where: { id: attemptId },
+      select: {
+        id: true,
+        userId: true,
+        quizId: true,
+        score: true,
+        totalScore: true,
+        startedAt: true,
+        finishedAt: true,
+      },
+    });
+    if (!attempt || attempt.userId !== userId) {
+      throw new Error('Attempt not found or does not belong to this user.');
+    }
 
-  if (!userAttemptRecord || userAttemptRecord.userId !== userId) {
-    throw new Error('Attempt not found or does not belong to this user.');
+    const { quizId, score: userScore } = attempt;
+
+    // 2) Fetch quiz metadata
+    const quiz = await client.quiz.findUnique({
+      where: { id: quizId },
+      select: { title: true },
+    });
+    if (!quiz) throw new Error('Quiz not found.');
+
+    // 3) Aggregate peer statistics
+    const agg = await client.quizAttempt.aggregate({
+      where: { quizId },
+      _avg: { score: true },
+      _max: { score: true },
+      _min: { score: true },
+      _count: { id: true },
+    });
+
+    const peerStats = {
+      averageScore: Number((agg._avg.score ?? 0).toFixed(1)),
+      highestScore: agg._max.score ?? 0,
+      lowestScore: agg._min.score ?? 0,
+      totalAttempts: agg._count.id,
+    };
+
+    // 4) Compute this user's overall rank (1 = highest score)
+    const betterCount = await client.quizAttempt.count({
+      where: { quizId, score: { gt: userScore ?? 0 } },
+    });
+    const userRank = betterCount + 1;
+
+    // 5) Build leaderboard: best score per user
+    const grouped = await client.quizAttempt.groupBy({
+      by: ['userId'],
+      where: { quizId },
+      _max: { score: true },
+    });
+
+    const leaderboard = grouped
+      .map(g => ({ userId: g.userId, score: g._max.score ?? 0 }))
+      .sort((a, b) => b.score - a.score);
+
+    // Take top 5
+    const topEntries = leaderboard.slice(0, 5);
+    const topUserIds = topEntries.map(e => e.userId);
+
+    // Fetch user names in one query
+    const users = await client.user.findMany({
+      where: { id: { in: topUserIds } },
+      select: { id: true, name: true },
+    });
+    const nameMap = Object.fromEntries(users.map(u => [u.id, u.name]));
+
+    const topAttempts = topEntries.map((e, idx) => ({
+      userId: e.userId,
+      userName: nameMap[e.userId] ?? 'Unknown',
+      score: e.score,
+      rank: idx + 1,
+    }));
+
+    // 6) Certificate info
+    const cert = await client.certificate.findUnique({
+      where: { userId_quizId: { userId, quizId } },
+      select: { id: true },
+    });
+
+    // 7) Assemble response
+    return {
+      userAttempt: {
+        id: attempt.id,
+        quizId,
+        score: attempt.score,
+        userRank,
+        totalScore: attempt.totalScore,
+        startedAt: attempt.startedAt,
+        finishedAt: attempt.finishedAt!,
+      },
+      quizTitle: quiz.title,
+      peerStats,
+      topAttempts,
+      totalUsers: leaderboard.length,
+      certificateIssued: Boolean(cert),
+      certificateId: cert?.id,
+    };
   }
-
-  const { quizId } = userAttemptRecord;
-
-  // 2) Fetch the quiz title
-  const quizRecord = await client.quiz.findUnique({
-    where: { id: quizId },
-    select: { title: true },
-  });
-
-  if (!quizRecord) {
-    throw new Error('Quiz not found.');
-  }
-
-  // 3) Aggregate peer statistics (all attempts for the same quiz)
-  const agg = await client.quizAttempt.aggregate({
-    where: { quizId },
-    _avg: { score: true },
-    _max: { score: true },
-    _min: { score: true },
-    _count: { id: true },
-  });
-
-  const averageScore = agg._avg.score ?? 0;
-  const highestScore = agg._max.score ?? 0;
-  const lowestScore = agg._min.score ?? 0;
-  const totalAttempts = agg._count.id;
-
-  // 4) Compute this user's rank:
-  const betterCount = await client.quizAttempt.count({
-    where: {
-      quizId,
-      score: { gt: userAttemptRecord.score ?? 0 },
-    },
-  });
-  const rank = betterCount + 1;
-// 1. Get best score for each user for this quiz
-const grouped = await client.quizAttempt.groupBy({
-    by: ['userId'],
-    where: { quizId },
-    _max: { score: true },
-  });
-
-  // 2. Sort all users by highest score descending
-  const sortedUsers = grouped
-    .map(g => ({
-      userId: g.userId,
-      score: g._max.score ?? 0,
-    }))
-    .sort((a, b) => b.score - a.score);
-
-  // 3. Create a userId → rank map
-  const userRanks: Record<string, number> = {};
-  sortedUsers.forEach((entry, idx) => {
-    userRanks[entry.userId] = idx + 1;
-  });
-
-  // 4. Extract top 5 users
-  const top5 = sortedUsers.slice(0, 5);
-  const topUserIds = top5.map(u => u.userId);
-
-  // 5. Fetch names for top 5 users
-  const userInfos = await client.user.findMany({
-    where: { id: { in: topUserIds } },
-    select: { id: true, name: true },
-  });
-
-  const userNameMap = Object.fromEntries(userInfos.map(u => [u.id, u.name]));
-
-  // 6. Prepare leaderboard
-  const topAttempts = top5.map(u => ({
-    userName: userNameMap[u.userId] ?? 'Unknown',
-    score: u.score,
-    rank: userRanks[u.userId],
-    userId: u.userId,
-  }));
-
-// 7. Get rank of this specific attempt
-const specificAttemptRank = 
-  sortedUsers.filter(u => u.score > (userAttemptRecord.score ?? 0)).length + 1;
-
-
-  // 6) Check if a certificate was issued
-  const certRecord = await client.certificate.findFirst({
-    where: {
-      userId,
-      quizId,
-    },
-    select: { id: true ,totalScore: true, 
-     },
-  });
-
-  const certificateIssued = Boolean(certRecord);
-  const certificateId = certRecord?.id;
-
-  // 7) Assemble and return
-  return {
-    userAttempt: {
-      id: userAttemptRecord.id,
-      userId: userAttemptRecord.userId,
-      quizId: userAttemptRecord.quizId,
-      score: userAttemptRecord.score,
-      userRank: specificAttemptRank,
-      // userBestScore: userBestScore,
-      startedAt: userAttemptRecord.startedAt,
-      finishedAt: userAttemptRecord.finishedAt!,
-      totalScore : certRecord?.totalScore
-    },
-    quizTitle: quizRecord.title,
-    peerStats: {
-      averageScore: Number(averageScore.toFixed(1)),
-      highestScore,
-      lowestScore,
-      rank,
-      totalAttempts,
-    },
-    topAttempts,
-    certificateIssued,
-    certificateId,
-  };
-}
 
 async getQuizByTitle(quizTitle: string): Promise<CourseDTO[]> {
   const quizzes = await prisma.quiz.findMany({

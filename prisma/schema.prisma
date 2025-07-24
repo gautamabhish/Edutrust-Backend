@@ -187,13 +187,14 @@ model QuizAttempt {
   quizId     String
   attemptNumber Int 
   score      Float?
+  totalScore Float  @default(0)
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
   status AttemptStatus @default(STARTED)
   quiz       Quiz      @relation(fields: [quizId], references: [id])
   user       User      @relation(fields: [userId], references: [id])
   AttemptAnswers AttemptAnswer[]
-
+  analysisAccessed  Boolean  @default(false)
   @@index([quizId], map: "QuizAttempt_quizId_fkey")
   @@index([userId], map: "QuizAttempt_userId_fkey")
 

@@ -24,4 +24,5 @@ getSubmissionStats(attemptId: string ,userId : string,tx?:Prisma.TransactionClie
 findByKeyAndValue(key: string,value:string): Promise<any[]>; // returns Quiz data or null if not found
 getQuizByTitle(quizTitle:string): Promise<CourseDTO[]>; // returns Quiz data or null if not found
 addComment(quizId: string, userId: string, comment: string): Promise<any>; // returns Quiz data or null if not found
+AttemptAnalysis(quizId: string, userId: string, tx?: Prisma.TransactionClient): Promise<any>; // returns Quiz data or null if not found
 }

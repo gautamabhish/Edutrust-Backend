@@ -367,6 +367,9 @@ async createOrder({
           id: crypto.randomUUID(),
           userId,
           quizId,
+          totalScore: 0, 
+          attemptNumber:0,
+          status: "ABANDONED",
           startedAt: new Date(),
           finishedAt: new Date(),
         },
@@ -467,6 +470,8 @@ async createOrder({
           id: crypto.randomUUID(),
           userId,
           quizId,
+          totalScore:0,
+          attemptNumber:0,
           startedAt: new Date(),
           finishedAt: new Date(), // Assuming instant unlock
         },
