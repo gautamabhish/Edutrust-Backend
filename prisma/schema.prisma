@@ -30,6 +30,9 @@ model LearningPath {
   createdAt   DateTime           @default(now())
   items       LearningPathItem[]
   users       UserTestSeries[]
+  thumbnailURL String?
+  updatedAt DateTime @default(now()) 
+
 }
 
 model LearningPathItem {

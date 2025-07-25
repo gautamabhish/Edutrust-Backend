@@ -857,11 +857,8 @@ async addComment(quizId: string, userId: string, comment: string): Promise<any> 
 
   }, { maxWait: 10000, timeout: 30000 });
 }
-async  addItemToPath(
-  pathId: string,
-  order: number,
-  input: ResourceItemInput
-): Promise<void> {
+
+async addResourceItemToPath(pathId: string, order: number, input: ResourceItemInput): Promise<void> {
   await prisma.learningPathItem.create({
     data: {
       id: uuid(),
@@ -874,7 +871,6 @@ async  addItemToPath(
     },
   });
 }
-
 async getItemsInPath(pathId: string): Promise<any[]> {
   return await prisma.learningPathItem.findMany({
     where: { learningPathId: pathId },
@@ -886,19 +882,6 @@ async getItemsInPath(pathId: string): Promise<any[]> {
       quizId: true,
       resourceTitle: true,
       resourceUrl: true,
-    },
-  });
-}
-async addResourceItemToPath(pathId: string, order: number, input: ResourceItemInput): Promise<void> {
-  await prisma.learningPathItem.create({
-    data: {
-      id: uuid(),
-      learningPathId: pathId,
-      type: input.type,
-      order,
-      quizId: input.type === 'QUIZ' ? input.quizId : undefined,
-      resourceTitle: input.type !== 'QUIZ' ? input.resourceTitle : undefined,
-      resourceUrl: input.type !== 'QUIZ' ? input.resourceUrl : undefined,
     },
   });
 }
@@ -938,8 +921,24 @@ async  getUserLearningPaths(userId: string): Promise<any[]> {
     },
   });
 }
-
-
-
+async createLearningPath(
+  title: string,
+  description?: string
+  , 
+  thumbnailURL?: string
+): Promise<string> {
+  const pathId = uuid();
+  await prisma.learningPath.create({
+    data: {
+      id: pathId,
+      title,
+      description: description || '',
+      thumbnailURL: thumbnailURL || '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+  return pathId;
+}
 
 }

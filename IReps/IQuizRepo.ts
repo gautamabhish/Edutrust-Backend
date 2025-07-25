@@ -41,4 +41,10 @@ AttemptAnalysis(quizId: string, userId: string, tx?: Prisma.TransactionClient): 
   updateItemOrderInPath(itemId: string, pathId: string, newOrder: number): Promise<void>;
 
   getUserLearningPaths(userId: string): Promise<any[]>;
+ createLearningPath(
+  title: string,
+  description?: string
+): Promise<string> ;
+
+
 }
