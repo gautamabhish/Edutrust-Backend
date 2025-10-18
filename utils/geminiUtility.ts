@@ -10,11 +10,12 @@ export interface StructuredResponse {
   summary?: string;
 }
 
+
 type UserSessionKey = `${string}:${string}`;
 
 export class GeminiUtility {
   private static client = new GoogleGenAI({
-    apiKey: process.env.GOOGLE_GENAI_API_KEY!,
+    apiKey: process.env.GEMINI_API_KEY || "",
   });
 
   private static userSessions: Map<UserSessionKey, BufferMemory> = new Map();
