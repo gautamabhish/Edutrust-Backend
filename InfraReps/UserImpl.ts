@@ -991,6 +991,226 @@ async updateProfile(
   });
 }
 
+async startInterviewSession(userId: string, role: string, resumeText: string): Promise<any> {
+  // 1) Validate user
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, TokenLeft: true, role: true },
+  });
+  if (!user) throw new Error("User not found");
+  // Optional role-based guard (if you need)
+  // if (user.role !== Prisma_Role.Default) throw new Error("Only normal users can start interviews");
 
+  // 2) Ensure user has enough tokens to start (you said 2000 free tokens)
+  if ((user.TokenLeft || 0) < 500) {
+    const err: any = new Error("Insufficient tokens to start an interview session. Please purchase tokens.");
+    err.status = 403;
+    throw err;
+  }
+
+  // Reserve tokens for the session — atomic transaction
+  const sessionId = crypto.randomUUID();
+  const toReserve = Math.min(2000, Math.max(500, user.TokenLeft || 0)); // reserve between 500-2000 tokens
+  const [session] = await this.prisma.$transaction([
+    this.prisma.interviewSession.create({
+      data: {
+        id: sessionId,
+        userId,
+        role,
+        // store resumeText if you added that column; otherwise remove field
+        // resumeText: resumeText ?? "", 
+        startedAt: new Date(),
+        timeLimitMinutes: 30,
+        status: "STARTED",
+        RemaingToken: toReserve,
+      },
+    }),
+    this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        TokenLeft: { decrement: toReserve },
+      },
+    }),
+  ]);
+
+  return {
+    sessionId: session.id,
+    sessionRemainingTokens: toReserve,
+    userTokenLeft: Math.max(0, (user.TokenLeft || 0) - toReserve),
+  };
+}
+async submitInterviewSessionQuestionAnswer(
+  userId: string,
+  sessionId: string,
+  tokenUsage: number,
+  satisfactionRating: number , 
+  endNext : boolean
+): Promise<any> {
+  const session = await this.prisma.interviewSession.findUnique({
+    where: { id: sessionId },
+  });
+
+  if (!session || session.userId !== userId) {
+    throw new Error("Interview session not found or unauthorized");
+  }
+
+  // If session is already finished
+  if (["COMPLETED", "ABANDONED", "TIMED_OUT"].includes(session.status)) {
+    throw new Error("Cannot update a finished session");
+  }
+
+  // Time limit check — if exceeded, end session immediately
+  const elapsedMinutes = (Date.now() - session.startedAt.getTime()) / 60000;
+  if (elapsedMinutes >= session.timeLimitMinutes) {
+    await this.prisma.interviewSession.update({
+      where: { id: sessionId },
+      data: { status: "TIMED_OUT", finishedAt: new Date()  },
+    });
+    throw new Error("Session time limit exceeded. Session ended.");
+  }
+
+  // Deduct tokens only if session is still active
+  const remainingTokens =  session.RemaingToken - tokenUsage;
+
+  // Update satisfaction score (running average)
+  let newSatisfaction = satisfactionRating;
+  if (session.satisfactionScore != null) {
+    newSatisfaction = (session.satisfactionScore + satisfactionRating) / 2;
+  }
+
+  const updated = await this.prisma.interviewSession.update({
+    where: { id: sessionId },
+    data: {
+      RemaingToken: remainingTokens,
+      satisfactionScore: newSatisfaction,
+      status:`${endNext?"COMPLETED":"STARTED"}`
+    },
+  });
+
+  return {
+    newRemainingTokens: updated.RemaingToken,
+    satisfactionScore: updated.satisfactionScore || 0,
+  };
+}
+
+  async createInterviewOrder({
+    userId,
+   
+  }: {
+    userId: string;
+  
+  }): Promise<any> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+    if (!user) throw new Error("User not found");
+
+    // Create Razorpay order
+    const order = await razorpay.orders.create({
+      amount: Math.round(99 * 100), // convert to paise
+      currency: "INR",
+      receipt: `STUDIO CHIPS-${Date.now()}-20,000`,
+      notes: { userId, originalAmount: 99 },
+    });
+
+    return {
+      orderId: order.id,
+      amount: 99,
+      currency: order.currency,
+      razorpayOrderResponse: order,
+    };
+  }
+
+  /**
+   * Verify Razorpay payment and top up user's tokens.
+   */
+  async purchaseTokensVerify({
+    userId,
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
+  }: {
+    userId: string;
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+    tokensPurchased: number; // tokens to add after payment
+  }) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error("User not found");
+
+    // Verify signature
+    const bodyToSign = razorpayOrderId + "|" + razorpayPaymentId;
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZOR_KEYSEC!)
+      .update(bodyToSign)
+      .digest("hex");
+
+    if (expectedSignature !== razorpaySignature) {
+      throw new Error("Invalid payment signature");
+    }
+
+    // Fetch payment and ensure it's captured
+    const payment = await razorpay.payments.fetch(razorpayPaymentId);
+    if (!payment || payment.status !== "captured") {
+      throw new Error("Payment is not captured");
+    }
+
+    // Normalize amount
+    const rawAmount = payment.amount;
+    const numericAmount = typeof rawAmount === "string" ? parseFloat(rawAmount) : rawAmount;
+    const amountInRupees = numericAmount / 100; // paise -> rupees
+
+    // Persist payment and update user tokens in a transaction
+    await this.prisma.$transaction(async (tx) => {
+      await tx.interviewPayment.create({
+        data: {
+          userId,
+          orderId: razorpayOrderId,
+          paymentId: razorpayPaymentId,
+          amount: amountInRupees,
+          currency: payment.currency,
+          paidAt: new Date(),
+          settled: false,
+        },
+      });
+
+      // Add tokens to user account
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          TokenLeft: { increment: 20000 },
+        },
+      });
+    });
+
+    return {
+      success: true,
+      message: `Payment verified. User tokens incremented by ${20000}`,
+      newTokenBalance: user.TokenLeft + 20000,
+    };
+  }
+
+/**
+ * End session
+ */
+async endInterviewSession(sessionId: string) {
+  await this.prisma.interviewSession.update({
+    where: { id: sessionId },
+    data: {
+      finishedAt: new Date(),
+      status: "COMPLETED",
+    },
+  });
+}
+
+async getInterviewTokensLeft(userId: string): Promise<number> {
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    select: { TokenLeft: true },
+  });
+  return user?.TokenLeft || 0;
+}
 
 }

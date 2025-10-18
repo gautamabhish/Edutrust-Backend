@@ -46,5 +46,10 @@ AttemptAnalysis(quizId: string, userId: string, tx?: Prisma.TransactionClient): 
   description?: string
 ): Promise<string> ;
 
-
+getLearningPathById(pathId: string): Promise<any>;
+getLeaningPathByTitle(title: string): Promise<any>;
+getPathsInfiniteScroll(
+  cursor?: string |null,
+  take?: number
+): Promise<{ paths: any[]; nextCursor: string | null }>;
 }

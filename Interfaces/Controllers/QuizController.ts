@@ -159,4 +159,93 @@ static async attemptAnalysis(req: any, res: Response) {
     return res.status(500).json({ message: err.message || "Failed to fetch attempt analysis" });
   }
 }
+static async createLearningPath(req: any, res: Response) {
+ 
+  try {
+     const { title, description } = req.body;
+  const userId = req.user?.id; // Assuming user ID is available in req.user
+
+    const pathId = await quizRepo.createLearningPath(title, description);
+    return res.status(201).json({ success: true, pathId });
+  } catch (error: any) {
+    console.error("Create learning path failed", error);
+    return res.status(500).json({ error: "Failed to create learning path" });
+  }
+}
+
+static async  getUserLearningPaths(req: any, res: Response) {
+  const userId = req.user?.id; // Assuming user ID is available in req.user
+
+  try {
+    const paths = await quizRepo.getUserLearningPaths(userId);
+    return res.status(200).json(paths);
+  } catch (error: any) {
+    console.error("Get user learning paths failed", error);
+    return res.status(500).json({ error: "Failed to fetch user learning paths" });
+  }
+}
+
+static async addResourceItemToPath(req: any, res: Response) {
+  const { pathId } = req.params;
+  const userId = req.user?.id; // Assuming user ID is available in req.user
+  const { order, input } = req.body;
+
+  try {
+    await quizRepo.addResourceItemToPath(pathId, order, input);
+    return res.status(200).json({ success: true });
+  } catch (error: any) {
+    console.error("Add resource item to path failed", error);
+    return res.status(500).json({ error: "Failed to add resource item to path" });
+  }
+}
+static async getItemsInPath(req: any, res: Response) {
+  const { pathId } = req.params;
+  const userId = req.user?.id; // Assuming user ID is available in req.user
+
+  try {
+    const items = await quizRepo.getItemsInPath(pathId);
+    return res.status(200).json(items);
+  } catch (error: any) {
+    console.error("Get items in path failed", error);
+    return res.status(500).json({ error: "Failed to fetch items in path" });
+  }
+
+}
+static async removeItemFromPath(req: any, res: Response) {
+  const { itemId, pathId } = req.params;
+  const userId = req.user?.id; // Assuming user ID is available in req.user
+
+  try {
+    await quizRepo.removeItemFromPath(itemId, pathId);
+    return res.status(200).json({ success: true });
+  } catch (error: any) {
+    console.error("Remove item from path failed", error);
+    return res.status(500).json({ error: "Failed to remove item from path" });
+  }
+}
+static async updateItemOrderInPath(req: any, res: Response) {
+  const { itemId, pathId } = req.params;
+  const userId = req.user?.id; // Assuming user ID is available in req.user
+  const { newOrder } = req.body;
+
+  try {
+    await quizRepo.updateItemOrderInPath(itemId, pathId, newOrder);
+    return res.status(200).json({ success: true });
+  } catch (error: any) {
+    console.error("Update item order in path failed", error);
+    return res.status(500).json({ error: "Failed to update item order in path" });
+  } 
+}
+static async gettopLearingPath(req:Request , res:Response){
+  try{
+    const cursor = req.query.cursor ? String(req.query.cursor) : null;
+    const topPaths = await quizRepo.getPathsInfiniteScroll(cursor) ; 
+    return res.status(200).json({topPaths})
+  }
+  catch(err:any){
+    console.log(err.message) ; 
+    return res.status(500).json({error:err});
+  }
+}
+
 }

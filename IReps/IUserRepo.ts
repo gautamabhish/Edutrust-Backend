@@ -133,5 +133,26 @@ updatePassword(
   otp: string 
 ): Promise<void>;
 
-
+startInterviewSession(userId: string, role: string, resumeText: string): Promise<any>;
+submitInterviewSessionQuestionAnswer(userId:string , sessionId:string , tokenUsage: number , satisfactionScore: number , endNext: boolean): Promise<any>;
+createInterviewOrder({
+  userId,
+  
+}: {
+  userId: string;
+ 
+}):Promise<any>;
+purchaseTokensVerify({
+  userId,
+  razorpayOrderId,
+  razorpayPaymentId,
+  razorpaySignature
+}: {
+  userId: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}): Promise<{ success: boolean; message: string }>;
+endInterviewSession(sessionId: string): Promise<void>;
+getInterviewTokensLeft(userId: string): Promise<number>;
 }

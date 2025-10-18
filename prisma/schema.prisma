@@ -108,6 +108,9 @@ model User {
   QuizDiscussion  QuizDiscussion[]
   UserXP          UserXP[]
   UserBadge       UserBadge[]
+  TokenLeft       Int @default(0)
+   interviewSessions InterviewSession[]
+  interviewPayments InterviewPayment[]
 }
 
 model Quiz {
@@ -384,4 +387,46 @@ model UserBadge {
   earnedAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+model InterviewSession {
+  id                 String           @id @default(uuid())
+  userId             String
+  role               String
+  startedAt          DateTime         @default(now())
+  finishedAt         DateTime?
+  status             InterviewStatus  @default(STARTED)
+  satisfactionScore  Float?           // 0-100, running average
+  RemaingToken       Int @default(5000)
+  timeLimitMinutes   Int              @default(30) // default 10 minutes per session
+
+  user               User             @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+enum InterviewStatus {
+  STARTED
+  COMPLETED
+  ABANDONED
+  TIMED_OUT
+}
+
+
+model InterviewPayment {
+  id            String    @id @default(uuid())
+  userId        String
+  orderId       String
+  paymentId     String
+  amount        Float
+  currency      String
+  paidAt        DateTime  @default(now())
+  settled       Boolean   @default(false)
+  settledAt     DateTime?
+
+  user          User              @relation(fields: [userId], references: [id])
+
+  @@unique([paymentId])
+  @@index([userId])
+
+  @@index([settled])
 }

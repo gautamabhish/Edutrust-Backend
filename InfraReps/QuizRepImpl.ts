@@ -941,4 +941,70 @@ async createLearningPath(
   return pathId;
 }
 
+async getLearningPathById(pathId: string): Promise<any> {
+  return await prisma.learningPath.findUnique({
+    where: { id: pathId },
+    include: {
+      items: {
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          type: true,
+          order: true,
+          quizId: true,
+          resourceTitle: true,
+          resourceUrl: true,
+        },
+      },
+    },
+  });
+}
+async getLeaningPathByTitle(title: string): Promise<any> {
+  return await prisma.learningPath.findFirst({
+    where: { 
+      title: {
+        contains: title,
+        // mode: 'insensitive',  // Uncomment if you want case-insensitive search
+      },
+     },
+    include: {
+      items: {
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          type: true,
+          order: true,
+          quizId: true,
+          resourceTitle: true,
+          resourceUrl: true,
+        },
+      },
+    },
+  });
+}
+
+async getPathsInfiniteScroll(
+  cursor?: string |null,
+  take?: number
+): Promise<{ paths: any[]; nextCursor: string |null }> {
+  take = take || 10; // Default to 10 if not provided
+  const query: Prisma.LearningPathFindManyArgs = {
+    take,
+    orderBy: { createdAt: 'desc' },
+   
+  };
+
+  if (cursor) {
+    query.cursor = { id: cursor };
+    query.skip = 1; // Skip the cursor item itself
+  }
+
+  const paths = await prisma.learningPath.findMany(query);
+
+  return {
+    paths,
+    nextCursor: paths.length === take ? paths[paths.length - 1].id : null,
+  };
+}
+
 }

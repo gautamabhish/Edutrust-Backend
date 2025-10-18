@@ -1,5 +1,6 @@
 import express from 'express';
 import userRoutes from './Interfaces/Routes/userRoutes';
+import interviewRoutes from './Interfaces/Routes/interviewRoutes';
 import quizRoutes from './Interfaces/Routes/quizRoutes';
 import { paymentRoutes } from './Interfaces/Routes/PaymentRoutes';
 import dotenv from 'dotenv';
@@ -24,6 +25,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/users/auth',userRoutes);
 app.use('/api/quiz',quizRoutes );
+app.use('/api/interview', interviewRoutes);
 app.use('/api/payments',paymentRoutes);
 app.listen(process.env.PORT || 5000, () => {
   console.log(`Server is running on port ${process.env.PORT || 5000}`);
