@@ -69,6 +69,7 @@ export class UserRepositoryImpl implements IUserRepository {
         otpExpires: user.otpExpires,
         password: user.getPassword(),
         role: this.toPrismaRole(user.role),
+        TokenLeft: 5000, // Initial tokens
         createdAt: user.createdAt
       }
     });
